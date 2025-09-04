@@ -1,0 +1,64 @@
+from django.db import models
+# Create your models here.
+class Tipo_Producto(models.Model):
+    tipo_producto_nombre = models.CharField(max_length=200)
+
+    class Meta:
+        verbose_name = 'Tipo de Producto'
+        verbose_name_plural = 'Tipos de Productos'
+    
+    def __str__(self):
+        return self.tipo_producto_nombre
+    
+
+class Categoria_Insumo(models.Model):
+    categoria_insumo_nombre=models.CharField(max_length=200)
+
+    class Meta:
+        verbose_name = 'Categoría de Insumo'
+        verbose_name_plural = 'Categorías de Insumos'
+    
+    def __str__(self):
+        return self.categoria_insumo_nombre
+    
+
+class Producto(models.Model):
+    producto_tipo_producto=models.ForeignKey(Tipo_Producto, on_delete=models.CASCADE)
+    producto_nombre=models.CharField(max_length=200)
+    producto_descripcion=models.CharField(max_length=200)
+    producto_precio=models.FloatField()
+    producto_disponible=models.BooleanField(default=True)
+    producto_fecha_hora_creacion=models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return self.producto_nombre
+    class Meta:
+        verbose_name_plural="Productos"
+        verbose_name="Producto"
+
+class Insumo(models.Model):
+    insumo_categoria_insumo=models.ForeignKey(Categoria_Insumo, on_delete=models.CASCADE)
+    insumo_nombre=models.CharField(max_length=200)
+    insumo_unidad=models.FloatField()
+    insumo_stock=models.FloatField()
+    insumo_stock_minimo=models.FloatField()
+    insumo_precio_compra=models.FloatField()
+
+    def __str__(self):
+        return self.insumo_nombre
+    class Meta:
+        verbose_name_plural="Insumos"
+        verbose_name="Insumo"
+
+class Producto_Insumo(models.Model):
+    producto=models.ForeignKey(Producto, on_delete=models.CASCADE)
+    insumo=models.ForeignKey(Insumo, on_delete=models.CASCADE)
+    producto_insumo_cantidad=models.FloatField()
+    
+    def __str__(self):
+        return self.producto_insumo_cantidad
+    class Meta:
+        verbose_name_plural="Productos por Insumos"
+        verbose_name="Producto por Insumo"
+
+
+
