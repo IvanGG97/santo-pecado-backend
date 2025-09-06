@@ -1,0 +1,59 @@
+.card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin: 15px 0;
+    font-family: Arial, sans-serif;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.card th,
+.card td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #dddddd;
+}
+
+.card th {
+    background-color: #f2f2f2;
+    color: #333333;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.9em;
+}
+
+.card tr:last-child td {
+    border-bottom: none;
+}
+
+.card tr:hover {
+    background-color: #f9f9f9;
+}
+
+.card td {
+    color: #555555;
+}
+
+/* Estilos específicos para los estados de la caja */
+.abierta {
+    color: #28a745; /* Verde para 'abierta' */
+    font-weight: bold;
+}
+
+.cerrada {
+    color: #dc3545; /* Rojo para 'cerrada' */
+    font-weight: bold;
+}

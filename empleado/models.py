@@ -18,9 +18,8 @@ class Turno(models.Model):
     class Meta:
         verbose_name="Turno"
         verbose_name_plural = "Turnos"
-   
 
-class Empleados(models.Model):
+class Empleado(models.Model):
     empleado_dni=models.CharField(max_length=100,unique=True)
     empleado_nombre = models.CharField(max_length=30)
     empleado_apellido = models.CharField(max_length=30)
@@ -32,3 +31,4 @@ class Empleados(models.Model):
 
     def __str__(self):
         return self.empleado_nombre
+

@@ -1,9 +1,11 @@
 from django.db import models
-
+from empleado.models import Empleado
+from proveedor.models import Proveedor
+from inventario.models import Insumo
 # Create your models here.
 class Compra(models.Model):
-    proveedor=models.ForeignKey("proveedor.Proveedor",on_delete=models.CASCADE)
-    empleado=models.ForeignKey("empleado.Empleado",on_delete=models.CASCADE)
+    proveedor=models.ForeignKey(Proveedor,on_delete=models.CASCADE)
+    empleado=models.ForeignKey(Empleado,on_delete=models.CASCADE)
     caja=models.ForeignKey("caja.Caja",on_delete=models.CASCADE)
     compra_fecha_hora=models.DateTimeField()
     compra_total=models.FloatField()
@@ -17,7 +19,7 @@ class Compra(models.Model):
     
 class Detalle_Compra(models.Model):
     compra=models.ForeignKey(Compra, on_delete=models.CASCADE)
-    insumo=models.ForeignKey("inventario.Insumo",on_delete=models.CASCADE)
+    insumo=models.ForeignKey(Insumo,on_delete=models.CASCADE)
     detalle_compra_cantidad=models.FloatField()
     detalle_compra_precio_unitario=models.FloatField()
 

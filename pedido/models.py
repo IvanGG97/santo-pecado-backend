@@ -15,4 +15,11 @@ class Estado_Pedido(models.Model):
 
 class Pedido(models.Model):
     estado_pedido=models.ForeignKey(Estado_Pedido,on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name_plural='Pedidos'
+        verbose_name="Pedido"
+    def __str__(self):
+        return self.estado_pedido.estado_pedido_nombre
+    
     
