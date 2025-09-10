@@ -3,9 +3,7 @@ import styles from './CajaCard.module.css';
 
 export default function CajaCard({ caja }) {
     // Definir la clase CSS basada en el estado de la caja
-    const estadoClass = caja.caja_estado === 'Abierta' 
-        ? styles.estadoAbierta 
-        : styles.estadoCerrada;
+    
 
     return (
         <div className={styles.card}>
@@ -31,7 +29,8 @@ export default function CajaCard({ caja }) {
                         <td>{caja.caja_saldo_final}</td>
                         <td>
                             {/* Aquí iría el botón o enlace para la acción */}
-                            <button>Acción</button>
+                            <button>Eliminar</button>
+                            <button>Editar</button>
                         </td>
                     </tr>
                 </tbody>

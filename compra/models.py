@@ -1,15 +1,34 @@
 from django.db import models
+from caja.models import Caja
 from empleado.models import Empleado
-from proveedor.models import Proveedor
 from inventario.models import Insumo
 # Create your models here.
+class Proveedor(models.Model):
+    proveedor_dni= models.CharField(max_length=100,unique=True)
+    proveedor_nombre = models.CharField(max_length=100)
+    proveedor_direccion = models.CharField(max_length=200)
+    proveedor_telefono = models.CharField(max_length=20)
+    proveedor_email = models.EmailField()
+    
+    class Meta:
+        verbose_name_plural = "Proveedores"
+        verbose_name = "Proveedor"
+    
+    def __str__(self):
+        return self.proveedor_nombre
+
+
 class Compra(models.Model):
     proveedor=models.ForeignKey(Proveedor,on_delete=models.CASCADE)
     empleado=models.ForeignKey(Empleado,on_delete=models.CASCADE)
-    caja=models.ForeignKey("caja.Caja",on_delete=models.CASCADE)
+    caja=models.ForeignKey(Caja,on_delete=models.CASCADE)
     compra_fecha_hora=models.DateTimeField()
     compra_total=models.FloatField()
-
+    metodo_pago=(
+        ('efectivo', 'Efectivo'),
+        ('transferencia', 'Transferencia Bancaria')
+    )
+    compra_metodo_pago=models.CharField(max_length=100, choices=metodo_pago,default='efectivo')
     class Meta:
         verbose_name="Compra"
         verbose_name_plural="Compras"

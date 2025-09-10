@@ -1,4 +1,10 @@
 from django.db import models
+from cliente.models import Cliente
+from empleado.models import Empleado
+from caja.models import Caja
+from pedido.models import Pedido
+from inventario.models import Producto
+# Create your models here.
 
 # Create your models here.
 class Estado_Venta(models.Model):
@@ -13,10 +19,10 @@ class Estado_Venta(models.Model):
     
 
 class Venta(models.Model):
-    cliente=models.ForeignKey("cliente.Cliente",on_delete=models.CASCADE)
-    empleado=models.ForeignKey("empleado.Empleado",on_delete=models.CASCADE)
-    caja=models.ForeignKey("caja.Caja",on_delete=models.CASCADE)
-    pedido=models.ForeignKey("pedido.Pedido",on_delete=models.CASCADE)
+    cliente=models.ForeignKey(Cliente,on_delete=models.CASCADE)
+    empleado=models.ForeignKey(Empleado,on_delete=models.CASCADE)
+    caja=models.ForeignKey(Caja,on_delete=models.CASCADE)
+    pedido=models.ForeignKey(Pedido,on_delete=models.CASCADE)
     estado_venta=models.ForeignKey(Estado_Venta,on_delete=models.CASCADE)
     venta_fecha_hora=models.DateTimeField()
     venta_total=models.FloatField()
@@ -29,3 +35,17 @@ class Venta(models.Model):
 
     def __str__(self):
         return f"Venta N°{self.id}"
+    
+class Detalle_Venta(models.Model):
+    producto=models.ForeignKey(Producto,on_delete=models.CASCADE)
+    venta=models.ForeignKey(Venta,on_delete=models.CASCADE)
+    detalle_venta_cantidad=models.IntegerField()
+    detalle_venta_precio_precio_unitario=models.FloatField()
+    detalle_venta_descuento=models.FloatField(default=0)
+
+    class Meta:
+        verbose_name="Detalle de Venta"
+        verbose_name_plural="Detalles de Ventas"
+
+    def __str__(self):
+        return f"Detalle de Venta N°{self.id}"

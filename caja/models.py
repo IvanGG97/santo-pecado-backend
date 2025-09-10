@@ -8,7 +8,6 @@ class Caja(models.Model):
     caja_fecha_hora_apertura=models.DateTimeField(auto_now=True)
     caja_fecha_hora_cierre=models.DateTimeField(null=True,blank=True)
     
-
     class Meta:
         verbose_name_plural="Cajas"
         verbose_name="Caja"

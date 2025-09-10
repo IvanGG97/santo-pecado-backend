@@ -36,7 +36,7 @@ class Producto_Combo(models.Model):
         verbose_name_plural = 'Productos Combos'
 
     def __str__(self):
-        return self.producto.nombre
+        return f'Producto:{self.producto} Combo:{self.combo}'
     
 class Producto_Promocion(models.Model):
     producto = models.ForeignKey("inventario.Producto", on_delete=models.CASCADE)
@@ -49,5 +49,5 @@ class Producto_Promocion(models.Model):
         verbose_name_plural = 'Productos Promociones'
     
     def __str__(self):
-        return self.producto.nombre
+        return f'Producto:{self.producto} Promocion:{self.promocion}'
    

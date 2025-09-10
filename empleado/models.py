@@ -1,7 +1,7 @@
 from django.db import models
 
 # Create your models here.
-class Rol_Empleados(models.Model):
+class Rol_Empleado(models.Model):
     rol_nombre = models.CharField(max_length=200)
     
     class Meta:
@@ -11,19 +11,15 @@ class Rol_Empleados(models.Model):
         return self.rol_nombre
     
 
-class Turno(models.Model):
-    turno_fecha_hora_inicio = models.DateTimeField()
-    turno_fecha_hora_fin = models.DateTimeField()
-    
-    class Meta:
-        verbose_name="Turno"
-        verbose_name_plural = "Turnos"
+
 
 class Empleado(models.Model):
+    rol_empleado=models.ForeignKey(Rol_Empleado,on_delete=models.CASCADE)
     empleado_dni=models.CharField(max_length=100,unique=True)
     empleado_nombre = models.CharField(max_length=30)
     empleado_apellido = models.CharField(max_length=30)
     empleado_telefono=models.CharField(max_length=100)
+
 
     class Meta:
         verbose_name="Empleado"
