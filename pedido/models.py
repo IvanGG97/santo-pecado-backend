@@ -1,5 +1,6 @@
 from django.db import models
 from inventario.models import Producto
+from empleado.models import Empleado_x_rol
 # Create your models here.
 
 class Estado_Pedido(models.Model):
@@ -14,6 +15,7 @@ class Estado_Pedido(models.Model):
     
 
 class Pedido(models.Model):
+    empleado_x_rol=models.ForeignKey(Empleado_x_rol,on_delete=models.CASCADE)
     estado_pedido=models.ForeignKey(Estado_Pedido,on_delete=models.CASCADE)
     pedido_fecha=models.DateTimeField(auto_now_add=True)
     pedido_hora=models.TimeField(auto_now_add=True)

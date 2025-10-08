@@ -7,6 +7,7 @@ class Cliente(models.Model):
     cliente_apellido = models.CharField(max_length=200)
     cliente_telefono = models.CharField(max_length=200)
     cliente_direccion = models.CharField(max_length=200)
+    cliente_email=models.EmailField()
 
     class Meta:
         verbose_name="Cliente"

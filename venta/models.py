@@ -20,9 +20,8 @@ class Estado_Venta(models.Model):
 
 class Venta(models.Model):
     cliente=models.ForeignKey(Cliente,on_delete=models.CASCADE)
-    empleado=models.ForeignKey(Empleado,on_delete=models.CASCADE)
     caja=models.ForeignKey(Caja,on_delete=models.CASCADE)
-    pedido=models.ForeignKey(Pedido,on_delete=models.CASCADE)
+    pedido=models.ForeignKey(Pedido,on_delete=models.SET_NULL, null=True, blank=True)
     estado_venta=models.ForeignKey(Estado_Venta,on_delete=models.CASCADE)
     venta_fecha_hora=models.DateTimeField()
     venta_total=models.FloatField()
@@ -40,7 +39,7 @@ class Detalle_Venta(models.Model):
     producto=models.ForeignKey(Producto,on_delete=models.CASCADE)
     venta=models.ForeignKey(Venta,on_delete=models.CASCADE)
     detalle_venta_cantidad=models.IntegerField()
-    detalle_venta_precio_precio_unitario=models.FloatField()
+    detalle_venta_precio_unitario=models.FloatField()
     detalle_venta_descuento=models.FloatField(default=0)
 
     class Meta:
