@@ -16,21 +16,21 @@ class Detalle_VentaInline(admin.TabularInline):
     model = Detalle_Venta
     extra = 1
     # Removemos autocomplete_fields hasta que los modelos relacionados tengan search_fields
-    # autocomplete_fields = ('producto',)
-    readonly_fields = ('detalle_venta_precio_precio_unitario',)
+    autocomplete_fields = ('producto',)
+    readonly_fields = ('detalle_venta_precio_unitario',)
 
 
 class VentaAdmin(admin.ModelAdmin):
     list_display = ('id', 'cliente', 'empleado', 'estado_venta', 'venta_fecha_hora', 'venta_total', 'venta_medio_pago', 'venta_descuento')
     list_display_links = ('id',)
-    search_fields = ('cliente__cliente_nombre', 'cliente__cliente_apellido', 'empleado__empleado_nombre', 'empleado__empleado_apellido')
+    search_fields = ('cliente__cliente_nombre', 'cliente__cliente_apellido', 'empleado__user__first_name', 'empleado__user__last_name')
     list_filter = ('estado_venta', 'venta_fecha_hora', 'venta_medio_pago', 'caja')
     list_per_page = 25
     ordering = ('-venta_fecha_hora',)
     readonly_fields = ('venta_total',)
     inlines = [Detalle_VentaInline]
     # Removemos autocomplete_fields hasta que los modelos relacionados tengan search_fields definidos
-    # autocomplete_fields = ('cliente', 'empleado', 'caja', 'pedido', 'estado_venta')
+    autocomplete_fields = ('cliente', 'empleado', 'caja', 'pedido', 'estado_venta')
     
     fieldsets = (
         ('Información Principal', {
@@ -50,7 +50,7 @@ admin.site.register(Venta, VentaAdmin)
 
 
 class Detalle_VentaAdmin(admin.ModelAdmin):
-    list_display = ('venta', 'producto', 'detalle_venta_cantidad', 'detalle_venta_precio_precio_unitario', 'detalle_venta_descuento', 'get_venta_total', 'get_venta_fecha')
+    list_display = ('venta', 'producto', 'detalle_venta_cantidad', 'detalle_venta_precio_unitario', 'detalle_venta_descuento', 'get_venta_total', 'get_venta_fecha')
     list_display_links = ('venta', 'producto')
     search_fields = ('venta__id', 'producto__producto_nombre')
     list_filter = ('venta__estado_venta', 'venta__venta_fecha_hora')

@@ -19,13 +19,13 @@ class Detalle_PedidoInline(admin.TabularInline):
 
 
 class PedidoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'estado_pedido', 'pedido_fecha', 'pedido_hora')
+    list_display = ('id', 'estado_pedido', 'pedido_fecha_hora')
     list_display_links = ('id',)
-    list_filter = ('estado_pedido', 'pedido_fecha')
+    list_filter = ('estado_pedido', 'pedido_fecha_hora')
     search_fields = ('estado_pedido__estado_pedido_nombre',)
     list_per_page = 25
-    ordering = ('-pedido_fecha', '-pedido_hora')
-    readonly_fields = ('pedido_fecha', 'pedido_hora')
+    ordering = ('-pedido_fecha_hora',)
+    readonly_fields = ('pedido_fecha_hora',)
     inlines = [Detalle_PedidoInline]
     
     def get_queryset(self, request):
@@ -37,15 +37,15 @@ admin.site.register(Pedido, PedidoAdmin)
 class Detalle_PedidoAdmin(admin.ModelAdmin):
     list_display = ('pedido', 'producto', 'get_pedido_fecha', 'get_estado_pedido')
     list_display_links = ('pedido', 'producto')
-    list_filter = ('pedido__estado_pedido', 'pedido__pedido_fecha')
+    list_filter = ('pedido__estado_pedido', 'pedido__pedido_fecha_hora')
     search_fields = ('producto__producto_nombre', 'pedido__id')
     list_per_page = 25
     autocomplete_fields = ('pedido', 'producto')
     
     def get_pedido_fecha(self, obj):
-        return obj.pedido.pedido_fecha
+        return obj.pedido.pedido_fecha_hora
     get_pedido_fecha.short_description = 'Fecha del Pedido'
-    get_pedido_fecha.admin_order_field = 'pedido__pedido_fecha'
+    get_pedido_fecha.admin_order_field = 'pedido__pedido_fecha_hora'
     
     def get_estado_pedido(self, obj):
         return obj.pedido.estado_pedido

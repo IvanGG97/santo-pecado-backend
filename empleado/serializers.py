@@ -1,82 +1,80 @@
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
+from .models import Empleado
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['username'] = user.username
+        token['first_name'] = user.first_name
+        token['is_staff'] = user.is_staff
+        user_group = user.groups.first()
+        token['rol'] = user_group.name if user_group else None
+        return token
+
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, required=True)
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'first_name', 'last_name')
+        fields = ('username', 'password', 'first_name', 'last_name', 'email')
+
     def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', '')
-        )
+        user = User.objects.create_user(**validated_data)
         return user
 
+class EmpleadoSerializer(serializers.ModelSerializer):
+    empleado_id = serializers.IntegerField(source='empleado.id', read_only=True)
+    rol = serializers.StringRelatedField(source='empleado.rol')
+    dni = serializers.CharField(source='empleado.dni', read_only=True)
+    telefono = serializers.CharField(source='empleado.telefono', read_only=True)
 
+    class Meta:
+        model = User
+        fields = ['id', 'empleado_id', 'username', 'email', 'first_name', 'last_name', 'rol', 'dni', 'telefono']
 
+class EmpleadoUpdateSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source='user.first_name', required=False)
+    last_name = serializers.CharField(source='user.last_name', required=False)
+    rol = serializers.PrimaryKeyRelatedField(queryset=Group.objects.all(), allow_null=True, required=False)
 
+    class Meta:
+        model = Empleado
+        fields = ['dni', 'telefono', 'rol', 'first_name', 'last_name']
 
-# from rest_framework import serializers
-# from django.contrib.auth.models import User
-# from django.contrib.auth.password_validation import validate_password
-# from .models import Empleado, Empleado_x_rol, Rol
-
-# class UserRegistroSerializer(serializers.ModelSerializer):
-#     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-#     password2 = serializers.CharField(write_only=True, required=True)
-#     rol = serializers.CharField(write_only=True, required=False)
-
-#     class Meta:
-#         model = User
-#         fields = ('username', 'password', 'password2', 'email', 'first_name', 'last_name', 'rol')
-
-#     def validate(self, attrs):
-#         if attrs['password'] != attrs['password2']:
-#             raise serializers.ValidationError({"password": "Las contraseñas no coinciden."})
-#         return attrs
-
-#     def create(self, validated_data):
-#         rol_nombre = validated_data.pop('rol', None)
-#         validated_data.pop('password2')
+    def update(self, instance, validated_data):
+        # Actualiza los datos del User (nombre, apellido)
+        user_data = validated_data.pop('user', {})
+        user = instance.user
+        user.first_name = user_data.get('first_name', user.first_name)
+        user.last_name = user_data.get('last_name', user.last_name)
+        user.save()
         
-#         user = User.objects.create_user(
-#             username=validated_data['username'],
-#             email=validated_data.get('email', ''),
-#             password=validated_data['password'],
-#             first_name=validated_data.get('first_name', ''),
-#             last_name=validated_data.get('last_name', '')
-#         )
+        # Actualiza los campos del perfil Empleado
+        instance.dni = validated_data.get('dni', instance.dni)
+        instance.telefono = validated_data.get('telefono', instance.telefono)
         
-#         # Asignar rol al empleado si se especificó
-#         if rol_nombre:
-#             try:
-#                 rol = Rol.objects.get(rol_nombre=rol_nombre)
-#                 # Crear o obtener el empleado
-#                 empleado, created = Empleado.objects.get_or_create(
-#                     usuario=user,
-#                     defaults={
-#                         'empleado_dni': user.username,
-#                         'empleado_nombre': user.first_name or user.username,
-#                         'empleado_apellido': user.last_name or '',
-#                         'empleado_telefono': ''
-#                     }
-#                 )
-#                 Empleado_x_rol.objects.create(empleado=empleado, rol=rol)
-#             except (Rol.DoesNotExist, Exception as e):
-#                 print(f"Error al asignar rol: {e}")
+        # --- LÓGICA DE SINCRONIZACIÓN DE ROL ---
+        new_rol = validated_data.get('rol', None)
         
-#         return user
+        # 1. Actualiza el rol en el perfil del Empleado (tu lógica original)
+        instance.rol = new_rol
+        instance.save()
+        
+        # 2. Sincroniza los grupos del User (la "lista de acceso")
+        if new_rol:
+            # .set() limpia los roles antiguos y añade el nuevo.
+            # Es la forma más segura de asignar un único rol.
+            user.groups.set([new_rol])
+        else:
+            # Si se asigna "Sin Rol", se eliminan todos los grupos del usuario.
+            user.groups.clear()
+            
+        return instance
 
-# class EmpleadoSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Empleado
-#         fields = ('id', 'empleado_dni', 'empleado_nombre', 'empleado_apellido', 'empleado_telefono')
+class RolSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ['id', 'name']
 
-# class UserSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = User
-#         fields = ('id', 'username', 'email', 'first_name', 'last_name')

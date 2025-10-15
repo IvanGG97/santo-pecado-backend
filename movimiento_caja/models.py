@@ -4,8 +4,8 @@ from caja.models import Caja
 class Egreso(models.Model):
     caja=models.ForeignKey(Caja, on_delete=models.CASCADE)
     egreso_descripcion=models.CharField(max_length=200)
-    egreso_monto=models.FloatField()
-    egreso_fecha_hora=models.DateTimeField()
+    egreso_monto=models.DecimalField(max_digits=10, decimal_places=2)
+    egreso_fecha_hora=models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name="Egreso"
@@ -18,8 +18,8 @@ class Egreso(models.Model):
 class Ingreso(models.Model):
     caja=models.ForeignKey(Caja, on_delete=models.CASCADE)
     ingreso_descripcion=models.CharField(max_length=200)
-    ingreso_monto=models.FloatField()
-    ingreso_fecha_hora=models.DateTimeField()
+    ingreso_monto=models.DecimalField(max_digits=10, decimal_places=2)
+    ingreso_fecha_hora=models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name="ingreso"

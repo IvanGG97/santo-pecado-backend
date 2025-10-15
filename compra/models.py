@@ -22,8 +22,8 @@ class Compra(models.Model):
     proveedor=models.ForeignKey(Proveedor,on_delete=models.CASCADE)
     empleado=models.ForeignKey(Empleado,on_delete=models.CASCADE)
     caja=models.ForeignKey(Caja,on_delete=models.CASCADE)
-    compra_fecha_hora=models.DateTimeField()
-    compra_total=models.FloatField()
+    compra_fecha_hora=models.DateTimeField(auto_now_add=True)
+    compra_total=models.DecimalField(max_digits=10, decimal_places=2)
     metodo_pago=(
         ('efectivo', 'Efectivo'),
         ('transferencia', 'Transferencia Bancaria')
@@ -39,8 +39,8 @@ class Compra(models.Model):
 class Detalle_Compra(models.Model):
     compra=models.ForeignKey(Compra, on_delete=models.CASCADE)
     insumo=models.ForeignKey(Insumo,on_delete=models.CASCADE)
-    detalle_compra_cantidad=models.FloatField()
-    detalle_compra_precio_unitario=models.FloatField()
+    detalle_compra_cantidad=models.DecimalField(max_digits=10, decimal_places=2)
+    detalle_compra_precio_unitario=models.DecimalField(max_digits=10, decimal_places=2)
 
 
     class Meta:

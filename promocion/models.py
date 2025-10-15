@@ -3,7 +3,7 @@ from django.db import models
 # Create your models here.
 class Promocion(models.Model):
     promocion_nombre = models.CharField(max_length=100)
-    promocion_precio = models.FloatField()
+    promocion_precio = models.DecimalField(max_digits=10, decimal_places=2)
     promocion_fecha_hora_inicio = models.DateTimeField(blank=True, null=True)
     promocion_fecha_hora_fin = models.DateTimeField(blank=True, null=True)
     promocion_stock= models.IntegerField()
@@ -20,7 +20,7 @@ class Promocion(models.Model):
 
 class Producto_Promocion(models.Model):
     producto = models.ForeignKey("inventario.Producto", on_delete=models.CASCADE)
-    promocion = models.ForeignKey(Promocion, on_delete=models.CASCADE)
+    promocion = models.ForeignKey(Promocion, on_delete=models.CASCADE, related_name='productos_promocion')
 
 
     class Meta:

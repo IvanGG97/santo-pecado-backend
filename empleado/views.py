@@ -1,127 +1,49 @@
+from django.contrib.auth.models import User, Group
 from rest_framework import generics, permissions
-from rest_framework.authtoken.models import Token
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from django.contrib.auth import authenticate
-from .serializers import RegisterSerializer
+from .models import Empleado
+from .serializers import (
+    RegisterSerializer,
+    EmpleadoSerializer,
+    EmpleadoUpdateSerializer,
+    RolSerializer
+)
 
+# --- VISTA DE REGISTRO ---
+# Permite que cualquiera cree un nuevo User. La señal se encarga de crear el Empleado.
 class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = (permissions.AllowAny,)
 
-class LoginView(APIView):
-    permission_classes = (permissions.AllowAny,)
 
-    def post(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        user = authenticate(username=username, password=password)
-        if user:
-            token, created = Token.objects.get_or_create(user=user)
-            return Response({
-                'token': token.key,
-                'user_id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-            })
-        return Response({'error': 'Credenciales inválidas'}, status=400)
+# --- VISTA PARA LISTAR EMPLEADOS ---
+# Devuelve la lista combinada de User y Empleado para la tabla del frontend.
+class EmpleadoListView(generics.ListAPIView):
+    queryset = User.objects.select_related('empleado').all().order_by('first_name')
+    serializer_class = EmpleadoSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 
+# --- VISTA PARA ACTUALIZAR UN EMPLEADO ---
+# Usa el ID del perfil Empleado para encontrar y actualizar los datos.
+class EmpleadoUpdateView(generics.UpdateAPIView):
+    queryset = Empleado.objects.all()
+    serializer_class = EmpleadoUpdateSerializer
+    permission_classes = [permissions.IsAdminUser]
 
-# from rest_framework import status
-# from rest_framework.decorators import api_view, permission_classes
-# from rest_framework.response import Response
-# from rest_framework.permissions import AllowAny, IsAuthenticated
-# from rest_framework_simplejwt.tokens import RefreshToken
-# from django.contrib.auth import authenticate
-# from django.contrib.auth.models import User
-# from .serializers import UserRegistroSerializer, UserSerializer, EmpleadoSerializer
-# from .models import Empleado
 
-# @api_view(['POST'])
-# @permission_classes([AllowAny])
-# def registro_usuario(request):
-#     print("✅ Llegó solicitud a /api/registro/")  # Debug
-#     print("Datos recibidos:", request.data)  # Debug
-    
-#     serializer = UserRegistroSerializer(data=request.data)
-#     if serializer.is_valid():
-#         user = serializer.save()
-#         refresh = RefreshToken.for_user(user)
-        
-#         # Obtener datos del empleado relacionado
-#         empleado_data = None
-#         try:
-#             empleado_data = EmpleadoSerializer(user.empleado).data
-#         except Empleado.DoesNotExist:
-#             print("⚠️ No se encontró empleado para el usuario")  # Debug
-        
-#         return Response({
-#             'user': UserSerializer(user).data,
-#             'empleado': empleado_data,
-#             'refresh': str(refresh),
-#             'access': str(refresh.access_token),
-#         }, status=status.HTTP_201_CREATED)
-    
-#     print("❌ Errores en serializer:", serializer.errors)  # Debug
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# --- VISTA PARA ELIMINAR UN EMPLEADO ---
+# Usa el ID del User para encontrar y eliminar al usuario y su perfil en cascada.
+class EmpleadoDeleteView(generics.DestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = EmpleadoSerializer # Solo se usa para la estructura, no para mostrar datos.
+    permission_classes = [permissions.IsAdminUser]
 
-# @api_view(['POST'])
-# @permission_classes([AllowAny])
-# def login_usuario(request):
-#     print("✅ Llegó solicitud a /api/login/")  # Debug
-#     print("Datos recibidos:", request.data)  # Debug
-    
-#     username = request.data.get('username')
-#     password = request.data.get('password')
-    
-#     user = authenticate(username=username, password=password)
-    
-#     if user is not None:
-#         refresh = RefreshToken.for_user(user)
-        
-#         # Obtener datos del empleado si existe
-#         empleado_data = None
-#         roles = []
-        
-#         try:
-#             empleado = user.empleado
-#             empleado_data = EmpleadoSerializer(empleado).data
-#             # Obtener roles del empleado
-#             roles = [er.rol.rol_nombre for er in empleado.empleado_x_rol_set.all()]
-#         except Empleado.DoesNotExist:
-#             print("⚠️ No se encontró empleado para el usuario")  # Debug
-#             pass
-        
-#         return Response({
-#             'user': UserSerializer(user).data,
-#             'empleado': empleado_data,
-#             'roles': roles,
-#             'refresh': str(refresh),
-#             'access': str(refresh.access_token),
-#         }, status=status.HTTP_200_OK)
-    
-#     print("❌ Credenciales inválidas")  # Debug
-#     return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
 
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def perfil_usuario(request):
-#     user_data = UserSerializer(request.user).data
-#     empleado_data = None
-#     roles = []
-    
-#     try:
-#         empleado = request.user.empleado
-#         empleado_data = EmpleadoSerializer(empleado).data
-#         roles = [er.rol.rol_nombre for er in empleado.empleado_x_rol_set.all()]
-#     except Empleado.DoesNotExist:
-#         pass
-    
-#     return Response({
-#         'user': user_data,
-#         'empleado': empleado_data,
-#         'roles': roles
-#     })
+# --- VISTA PARA LISTAR ROLES ---
+# Devuelve la lista de Grupos para el menú desplegable del modal de edición.
+class RolListView(generics.ListAPIView):
+    queryset = Group.objects.all().order_by('name')
+    serializer_class = RolSerializer
+    permission_classes = [permissions.IsAuthenticated]
+

@@ -1,20 +1,25 @@
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/empleado/', include('empleado.urls')),
-    # otras apps...
+    path('api/cliente/', include('cliente.urls')),
+    path('api/caja/', include('caja.urls')),
+    path('api/movimiento-caja/', include('movimiento_caja.urls')),
+    path('api/inventario/', include('inventario.urls')),
+    path('api/promocion/', include('promocion.urls')),
+    path('api/pedido/', include('pedido.urls')),
+    path('api/venta/', include('venta.urls')),
+
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 
 
 
 
-
-# from django.contrib import admin
-# from django.urls import path,include
-
-# urlpatterns = [
-#     path('admin/', admin.site.urls),
-#     path('api/', include('empleado.urls')),
-
-# ]

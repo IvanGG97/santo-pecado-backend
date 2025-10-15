@@ -26,7 +26,7 @@ class Producto(models.Model):
     tipo_producto=models.ForeignKey(Tipo_Producto, on_delete=models.CASCADE)
     producto_nombre=models.CharField(max_length=200)
     producto_descripcion=models.CharField(max_length=200)
-    producto_precio=models.FloatField()
+    producto_precio=models.DecimalField(max_digits=10, decimal_places=2)
     producto_disponible=models.BooleanField(default=True)
     producto_fecha_hora_creacion=models.DateTimeField(auto_now_add=True)
     producto_imagen=models.ImageField(upload_to='inventario/images', blank=True, null=True)
@@ -40,10 +40,10 @@ class Producto(models.Model):
 class Insumo(models.Model):
     categoria_insumo=models.ForeignKey(Categoria_Insumo, on_delete=models.CASCADE)
     insumo_nombre=models.CharField(max_length=200)
-    insumo_unidad=models.FloatField()
-    insumo_stock=models.FloatField()
-    insumo_stock_minimo=models.FloatField()
-    insumo_precio_compra=models.FloatField()
+    insumo_unidad=models.CharField(max_length=50) # Ej: 'kg', 'litro', 'unidad'
+    insumo_stock=models.DecimalField(max_digits=10, decimal_places=2)
+    insumo_stock_minimo=models.DecimalField(max_digits=10, decimal_places=2)
+    insumo_precio_compra=models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
         return self.insumo_nombre
@@ -54,13 +54,10 @@ class Insumo(models.Model):
 class Producto_X_Insumo(models.Model):
     producto=models.ForeignKey(Producto, on_delete=models.CASCADE)
     insumo=models.ForeignKey(Insumo, on_delete=models.CASCADE)
-    producto_insumo_cantidad=models.FloatField()
+    producto_insumo_cantidad=models.DecimalField(max_digits=10, decimal_places=3)
     
     def __str__(self):
         return f'{self.producto.producto_nombre} - {self.insumo.insumo_nombre}'
     class Meta:
         verbose_name_plural="Productos por Insumos"
         verbose_name="Producto por Insumo"
-
-
-

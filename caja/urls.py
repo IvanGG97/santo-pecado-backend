@@ -1,8 +1,11 @@
+from rest_framework.routers import DefaultRouter
 from django.urls import path, include
-from .views import CajaList,CajaDetail
+from .views import CajaViewSet
 
-urlpatterns = [
-    path('', CajaList.as_view(), name='caja-list'),
-    path('<int:pk>/', CajaDetail.as_view(), name='caja-detail'),
-]
+# Crea un router y registra el ViewSet.
+# Esto genera automáticamente las rutas estándar (listar, detalle, etc.)
+router = DefaultRouter()
+router.register(r'cajas', CajaViewSet, basename='caja')
 
+# El router.urls incluye todas las rutas estándar y las personalizadas (@action)
+urlpatterns = router.urls
