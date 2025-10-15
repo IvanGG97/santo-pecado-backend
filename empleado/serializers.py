@@ -49,27 +49,33 @@ class EmpleadoUpdateSerializer(serializers.ModelSerializer):
         user = instance.user
         user.first_name = user_data.get('first_name', user.first_name)
         user.last_name = user_data.get('last_name', user.last_name)
-        user.save()
         
         # Actualiza los campos del perfil Empleado
         instance.dni = validated_data.get('dni', instance.dni)
         instance.telefono = validated_data.get('telefono', instance.telefono)
         
-        # --- LÓGICA DE SINCRONIZACIÓN DE ROL ---
-        new_rol = validated_data.get('rol', None)
+        # --- LÓGICA DE SINCRONIZACIÓN DE ROL Y PERMISOS ---
+        new_rol = validated_data.get('rol', instance.rol)
         
-        # 1. Actualiza el rol en el perfil del Empleado (tu lógica original)
+        # 1. Actualiza el rol en el perfil del Empleado
         instance.rol = new_rol
         instance.save()
         
-        # 2. Sincroniza los grupos del User (la "lista de acceso")
+        # 2. Sincroniza los grupos del User y el estado de 'staff'
         if new_rol:
-            # .set() limpia los roles antiguos y añade el nuevo.
-            # Es la forma más segura de asignar un único rol.
             user.groups.set([new_rol])
+            # Si el rol es 'Admin', se convierte en staff. Si no, no lo es.
+            if new_rol.name == 'Admin':
+                user.is_staff = True
+            else:
+                user.is_staff = False
         else:
-            # Si se asigna "Sin Rol", se eliminan todos los grupos del usuario.
+            # Si se asigna "Sin Rol", se eliminan los grupos y el status de staff.
             user.groups.clear()
+            user.is_staff = False
+            
+        # Guardamos el usuario para persistir los cambios en is_staff y los grupos.
+        user.save()
             
         return instance
 
