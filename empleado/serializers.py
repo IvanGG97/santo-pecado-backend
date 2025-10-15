@@ -3,6 +3,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User, Group
 from .models import Empleado
 
+# ... MyTokenObtainPairSerializer (sin cambios) ...
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -14,16 +15,36 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['rol'] = user_group.name if user_group else None
         return token
 
+# --- RegisterSerializer (MODIFICADO) ---
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    # 1. Añadimos los nuevos campos que vendrán desde el frontend.
+    dni = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    telefono = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
     class Meta:
         model = User
-        fields = ('username', 'password', 'first_name', 'last_name', 'email')
+        # 2. Incluimos los nuevos campos en la lista.
+        fields = ('username', 'password', 'first_name', 'last_name', 'email', 'dni', 'telefono')
 
     def create(self, validated_data):
+        # 3. Separamos los datos del Empleado de los datos del User.
+        dni_data = validated_data.pop('dni', None)
+        telefono_data = validated_data.pop('telefono', None)
+        
+        # 4. Creamos el objeto User con los datos restantes.
         user = User.objects.create_user(**validated_data)
+
+        # 5. La señal 'post_save' en models.py ya creó un perfil Empleado vacío.
+        #    Ahora lo actualizamos con los datos adicionales.
+        if hasattr(user, 'empleado'):
+            user.empleado.dni = dni_data
+            user.empleado.telefono = telefono_data
+            user.empleado.save()
+            
         return user
 
+# ... EmpleadoSerializer, EmpleadoUpdateSerializer, RolSerializer (sin cambios) ...
 class EmpleadoSerializer(serializers.ModelSerializer):
     empleado_id = serializers.IntegerField(source='empleado.id', read_only=True)
     rol = serializers.StringRelatedField(source='empleado.rol')
@@ -83,4 +104,3 @@ class RolSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ['id', 'name']
-
