@@ -1,13 +1,16 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import PedidoViewSet, EstadoPedidoViewSet
-
-router = DefaultRouter()
-
-router.register(r'pedidos', PedidoViewSet, basename='pedido')
-
-router.register(r'estados', EstadoPedidoViewSet, basename='estado-pedido')
+from django.urls import path
+from .views import PedidoListCreateView, PedidoDetailView, EstadoPedidoListView
 
 urlpatterns = [
-    path('', include(router.urls)),
+    # Ruta para listar y crear pedidos
+    # GET, POST -> /api/pedido/pedidos/
+    path('pedidos/', PedidoListCreateView.as_view(), name='pedido-list-create'),
+    
+    # Ruta para ver, actualizar y eliminar un pedido específico
+    # GET, PUT, PATCH, DELETE -> /api/pedido/pedidos/5/
+    path('pedidos/<int:pk>/', PedidoDetailView.as_view(), name='pedido-detail'),
+
+    # Ruta para obtener la lista de estados de pedido
+    # GET -> /api/pedido/estados/
+    path('estados/', EstadoPedidoListView.as_view(), name='estado-pedido-list'),
 ]

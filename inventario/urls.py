@@ -1,26 +1,20 @@
-from rest_framework.routers import DefaultRouter
-from django.urls import path, include
+from django.urls import path
 from .views import (
-    TipoProductoViewSet,
-    CategoriaInsumoViewSet,
-    ProductoViewSet,
-    InsumoViewSet,
-    ProductoXInsumoViewSet
+    ProductoListCreateView, 
+    ProductoDetailView, 
+    TipoProductoListCreateView,
+    TipoProductoDetailView # Importamos la vista de detalle
 )
 
-# Creamos un router para registrar automáticamente todas las rutas CRUD
-router = DefaultRouter()
+urlpatterns = [
+    # --- Rutas de Productos ---
+    path('productos/', ProductoListCreateView.as_view(), name='producto-list-create'),
+    path('productos/<int:pk>/', ProductoDetailView.as_view(), name='producto-detail'),
+    
+    # --- RUTAS PARA TIPO DE PRODUCTO (CORREGIDAS) ---
+    # Para listar y crear
+    path('tipos-producto/', TipoProductoListCreateView.as_view(), name='tipo-producto-list-create'),
+    # Para ver, actualizar y eliminar un tipo específico
+    path('tipos-producto/<int:pk>/', TipoProductoDetailView.as_view(), name='tipo-producto-detail'),
+]
 
-# Gestión de Productos y su configuración
-router.register(r'productos', ProductoViewSet, basename='producto') 
-router.register(r'tipos-producto', TipoProductoViewSet, basename='tipo-producto')
-
-# Gestión de Insumos y su configuración
-router.register(r'insumos', InsumoViewSet, basename='insumo')
-router.register(r'categorias-insumo', CategoriaInsumoViewSet, basename='categoria-insumo')
-
-# Gestión de las "Recetas" (relación Producto-Insumo)
-router.register(r'recetas', ProductoXInsumoViewSet, basename='receta')
-
-# Exportamos las rutas generadas por el router
-urlpatterns = router.urls

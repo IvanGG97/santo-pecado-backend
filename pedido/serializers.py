@@ -1,74 +1,75 @@
 from rest_framework import serializers
-from .models import Estado_Pedido, Pedido, Detalle_Pedido
-from inventario.models import Producto, Insumo, Producto_X_Insumo
+from .models import Pedido, Detalle_Pedido, Estado_Pedido
+from inventario.models import Producto
+from empleado.models import Empleado
 
-class EstadoPedidoSerializer(serializers.ModelSerializer):
+# --- Serializers para LECTURA (mostrar datos) ---
+
+class ProductoEnDetalleSerializer(serializers.ModelSerializer):
+    """Serializer simple para mostrar el nombre del producto en un detalle."""
     class Meta:
-        model = Estado_Pedido
-        fields = 'all'
+        model = Producto
+        fields = ['producto_nombre']
 
 class DetallePedidoSerializer(serializers.ModelSerializer):
-    producto_nombre = serializers.CharField(source='producto.producto_nombre', read_only=True)
+    """Serializer para mostrar los detalles de un pedido."""
+    producto = ProductoEnDetalleSerializer(read_only=True)
 
     class Meta:
         model = Detalle_Pedido
-        fields = ('id', 'producto', 'producto_nombre')
-        # Puedes añadir campos como 'cantidad' aquí si los añades al modelo Detalle_Pedido
+        fields = ['producto', 'cantidad', 'precio_unitario']
 
-class PedidoSerializer(serializers.ModelSerializer):
-# Campo anidado para recibir y mostrar los detalles del pedido
-    detalles = DetallePedidoSerializer(source='detalle_pedido_set', many=True)
-
-    # Campo de solo lectura para mostrar el nombre del estado
-    estado_nombre = serializers.CharField(source='estado_pedido.estado_pedido_nombre', read_only=True)
-
-    # Campo de solo lectura para el empleado (usando la relación inversa)
-    empleado_nombre = serializers.CharField(source='empleado_x_rol.empleado.empleado_nombre', read_only=True)
-
+class PedidoListSerializer(serializers.ModelSerializer):
+    """Serializer para listar todos los pedidos."""
+    empleado = serializers.StringRelatedField(source='empleado.user.username')
+    estado_pedido = serializers.StringRelatedField()
+    detalles = DetallePedidoSerializer(many=True, read_only=True)
 
     class Meta:
         model = Pedido
-        fields = (
-            'id', 
-            'empleado_x_rol', 
-            'empleado_nombre', 
-            'estado_pedido', 
-            'estado_nombre',
-            'pedido_fecha_hora', 
-            'detalles'
-        )
-        read_only_fields = ('pedido_fecha_hora',)
+        fields = ['id', 'empleado', 'estado_pedido', 'pedido_fecha_hora', 'detalles']
 
-    # Método CREATE para manejar la creación anidada
+# --- Serializers para ESCRITURA (crear un nuevo pedido) ---
+
+class DetallePedidoCreateSerializer(serializers.ModelSerializer):
+    """Serializer para recibir los datos de un detalle al crear un pedido."""
+    producto_id = serializers.IntegerField()
+
+    class Meta:
+        model = Detalle_Pedido
+        fields = ['producto_id', 'cantidad']
+
+class PedidoCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer para crear un nuevo pedido con sus detalles anidados.
+    El empleado se asignará automáticamente desde el usuario autenticado.
+    """
+    detalles = DetallePedidoCreateSerializer(many=True)
+
+    class Meta:
+        model = Pedido
+        # El estado inicial y el empleado no se piden, se asignan en la vista.
+        fields = ['detalles']
+    
     def create(self, validated_data):
-        # 1. Separar los detalles (source='detalle_pedido_set' en la clase Meta)
-        detalles_data = validated_data.pop('detalle_pedido_set')
-        
-        # 2. Crear el Pedido principal
+        detalles_data = validated_data.pop('detalles')
+        # Creamos el objeto Pedido
         pedido = Pedido.objects.create(**validated_data)
 
-        # 3. Crear los detalles del pedido
+        # Creamos los objetos Detalle_Pedido asociados
         for detalle_data in detalles_data:
-            # Aquí asumimos que el detalle solo tiene 'producto' (ForeignKey) y 'cantidad'
-            Detalle_Pedido.objects.create(pedido=pedido, **detalle_data)
-
-            # TODO: Lógica de Stock y Recetas
-            # Si el pedido está 'En Preparación' (Estado ID = 2) o 'Completado' (Estado ID = 3),
-            # deberías iterar sobre la receta del producto y descontar los insumos del inventario.
-
+            producto = Producto.objects.get(id=detalle_data['producto_id'])
+            Detalle_Pedido.objects.create(
+                pedido=pedido,
+                producto=producto,
+                cantidad=detalle_data['cantidad'],
+                # Guardamos el precio del producto en el momento de la venta
+                precio_unitario=producto.producto_precio 
+            )
         return pedido
 
-    # Método UPDATE (necesario para manejar los detalles anidados)
-    def update(self, instance, validated_data):
-        # La lógica de UPDATE es más compleja ya que implica:
-        # 1. Actualizar el pedido principal (ej. cambiar el estado)
-        # 2. Crear nuevos detalles, modificar existentes o eliminar los que falten.
-        
-        # 1. Actualizar campos del Pedido principal (ej. estado)
-        instance.empleado_x_rol = validated_data.get('empleado_x_rol', instance.empleado_x_rol)
-        instance.estado_pedido = validated_data.get('estado_pedido', instance.estado_pedido)
-        instance.save()
-        
-        # Si se envían detalles, se manejan aquí (omitido por simplicidad inicial en update)
-
-        return instance
+# --- Serializer para listar los estados de pedido ---
+class EstadoPedidoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Estado_Pedido
+        fields = '__all__'

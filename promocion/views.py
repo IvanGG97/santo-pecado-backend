@@ -1,18 +1,40 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.response import Response
 from .models import Promocion
-from .serialziers import PromocionSerializer
+from .serializers import PromocionReadSerializer, PromocionWriteSerializer
 
 class PromocionViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint que permite ver, crear, editar y eliminar promociones.
-    - Al crear o actualizar, se debe enviar una lista de IDs de productos en el campo `productos_ids`.
-    - Al obtener una promoción, se mostrarán los detalles completos de los productos asociados.
-    """
-    serializer_class = PromocionSerializer
-    
-    # El queryset base para este ViewSet.
-    # Usamos prefetch_related para optimizar la consulta y evitar el problema N+1
-    # al obtener los productos relacionados con cada promoción.
-    # 'productos_promocion' es el related_name en el modelo Producto_Promocion.
-    # '__producto' sigue la relación para precargar también el objeto Producto.
-    queryset = Promocion.objects.prefetch_related('productos_promocion__producto').all()
+    queryset = Promocion.objects.prefetch_related('productos_promocion__producto').all().order_by('-id')
+
+    def get_serializer_class(self):
+        # Si la acción es para leer (list o retrieve), usamos el serializer de lectura.
+        if self.action in ['list', 'retrieve']:
+            return PromocionReadSerializer
+        # Para cualquier otra acción (create, update, patch), usamos el de escritura.
+        return PromocionWriteSerializer
+
+    # --- CÓDIGO DE DIAGNÓSTICO AÑADIDO ---
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print("\n----------- DETALLES DEL ERROR DE VALIDACIÓN (CREAR PROMOCIÓN) -----------")
+            print("Datos recibidos por el backend:")
+            print(request.data)
+            print("\nErrores encontrados por el serializer:")
+            print(serializer.errors)
+            print("----------------------------------------------------------------------\n")
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if not serializer.is_valid():
+            print("\n----------- DETALLES DEL ERROR DE VALIDACIÓN (EDITAR PROMOCIÓN) -----------")
+            print("Datos recibidos por el backend:")
+            print(request.data)
+            print("\nErrores encontrados por el serializer:")
+            print(serializer.errors)
+            print("-----------------------------------------------------------------------\n")
+        return super().update(request, *args, **kwargs)
+

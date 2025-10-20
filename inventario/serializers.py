@@ -1,85 +1,57 @@
 from rest_framework import serializers
-from .models import (
-    Tipo_Producto, 
-    Categoria_Insumo, 
-    Producto, 
-    Insumo, 
-    Producto_X_Insumo
-)
+from .models import Producto, Tipo_Producto
 
-# Serializer para Modelos Simples
+# --- Serializers de Lectura (sin cambios) ---
 class TipoProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tipo_Producto
-        fields = '__all__'
-
-class CategoriaInsumoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Categoria_Insumo
-        fields = '__all__'
-
-
-# Serializer para Insumo
-class InsumoSerializer(serializers.ModelSerializer):
-    # Campo de solo lectura para mostrar el nombre de la categoría del insumo
-    categoria_nombre = serializers.CharField(source='categoria_insumo.categoria_insumo_nombre', read_only=True)
-    
-    class Meta:
-        model = Insumo
-        fields = '__all__'
-        read_only_fields = ('insumo_stock',) # El stock se maneja por movimientos, no se edita directamente
-
-# --- Serializers Anidados para "Recetas" ---
-
-class ProductoXInsumoSerializer(serializers.ModelSerializer):
-    # Campo de solo lectura para el nombre del Insumo, útil para la respuesta GET
-    insumo_nombre = serializers.CharField(source='insumo.insumo_nombre', read_only=True)
-    insumo_unidad = serializers.CharField(source='insumo.insumo_unidad', read_only=True)
-
-    class Meta:
-        model = Producto_X_Insumo
-        # Solo pedimos el ID del insumo y la cantidad
-        fields = ('id', 'insumo', 'insumo_nombre', 'insumo_unidad', 'producto_insumo_cantidad')
-        read_only_fields = ('id',)
-
+        fields = ['id', 'tipo_producto_nombre']
 
 class ProductoSerializer(serializers.ModelSerializer):
-    # 1. Serializer Anidado para las "Recetas" (relación inversa: producto_x_insumo_set)
-    recetas = ProductoXInsumoSerializer(source='producto_x_insumo_set', many=True, required=False)
-    
-    # 2. Campos de Solo Lectura para nombres (mejor presentación en GET)
-    tipo_producto_nombre = serializers.CharField(source='tipo_producto.tipo_producto_nombre', read_only=True)
+    tipo_producto = serializers.StringRelatedField()
+    producto_imagen = serializers.ImageField(max_length=None, use_url=True, read_only=True)
+    class Meta:
+        model = Producto
+        fields = [ 'id', 'producto_nombre', 'producto_descripcion', 'producto_precio', 'producto_disponible', 'producto_imagen', 'producto_imagen_url', 'tipo_producto' ]
+
+# --- Serializer de Escritura (con lógica de eliminación de imagen) ---
+class ProductoWriteSerializer(serializers.ModelSerializer):
+    producto_imagen = serializers.ImageField(max_length=None, use_url=True, required=False, allow_null=True)
 
     class Meta:
         model = Producto
-        fields = (
-            'id', 'tipo_producto', 'tipo_producto_nombre', 'producto_nombre', 
-            'producto_descripcion', 'producto_precio', 'producto_disponible', 
-            'producto_imagen', 'producto_fecha_hora_creacion', 'recetas'
-        )
-        read_only_fields = ('producto_fecha_hora_creacion',)
+        fields = [ 'tipo_producto', 'producto_nombre', 'producto_descripcion', 'producto_precio', 'producto_disponible', 'producto_imagen', 'producto_imagen_url' ]
 
-    def create(self, validated_data):
-        # Maneja la creación de Producto y sus recetas anidadas
-        recetas_data = validated_data.pop('producto_x_insumo_set', [])
-        producto = Producto.objects.create(**validated_data)
-        
-        for receta_data in recetas_data:
-            Producto_X_Insumo.objects.create(producto=producto, **receta_data)
-        
-        return producto
+    def to_internal_value(self, data):
+        # ... (lógica de conversión de datos sin cambios) ...
+        mutable_data = data.copy()
+        for field_name in ['producto_imagen', 'producto_imagen_url', 'producto_descripcion']:
+            if field_name in mutable_data and isinstance(mutable_data[field_name], str) and not mutable_data[field_name]:
+                del mutable_data[field_name]
+        disponible = mutable_data.get('producto_disponible')
+        if isinstance(disponible, str):
+            mutable_data['producto_disponible'] = disponible.lower() in ('true', 'on')
+        tipo = mutable_data.get('tipo_producto')
+        if isinstance(tipo, str) and tipo.isdigit():
+            mutable_data['tipo_producto'] = int(tipo)
+        return super().to_internal_value(mutable_data)
 
     def update(self, instance, validated_data):
-        # Maneja la actualización de Producto y la edición de sus recetas
-        recetas_data = validated_data.pop('producto_x_insumo_set', None)
+        # --- LÓGICA PARA ELIMINAR LA IMAGEN ANTERIOR ---
         
-        # 1. Actualizar campos del Producto
-        instance = super().update(instance, validated_data)
+        # Si se sube un nuevo archivo, borramos la imagen anterior (si existía)
+        if 'producto_imagen' in validated_data:
+            instance.producto_imagen.delete(save=False) # No guardar todavía
+            instance.producto_imagen_url = None # Limpiamos la URL
         
-        # 2. Gestionar las Recetas (si se enviaron)
-        if recetas_data is not None:
-            instance.producto_x_insumo_set.all().delete() # Estrategia simple: borrar y recrear
-            for receta_data in recetas_data:
-                Producto_X_Insumo.objects.create(producto=instance, **receta_data)
-        
-        return instance
+        # Si se proporciona una nueva URL (y no un archivo), borramos la imagen anterior
+        elif 'producto_imagen_url' in validated_data and validated_data['producto_imagen_url']:
+            instance.producto_imagen.delete(save=False)
+
+        # Si se envían los campos de imagen explícitamente como nulos, se borra la imagen
+        if validated_data.get('producto_imagen') is None and validated_data.get('producto_imagen_url') is None:
+             instance.producto_imagen.delete(save=False)
+             instance.producto_imagen_url = None
+
+        return super().update(instance, validated_data)
+

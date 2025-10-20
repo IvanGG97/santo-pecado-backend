@@ -21,7 +21,7 @@ class Promocion(models.Model):
 class Producto_Promocion(models.Model):
     producto = models.ForeignKey("inventario.Producto", on_delete=models.CASCADE)
     promocion = models.ForeignKey(Promocion, on_delete=models.CASCADE, related_name='productos_promocion')
-
+    cantidad = models.PositiveIntegerField(default=1)
 
     class Meta:
         verbose_name = 'Producto Promocion'

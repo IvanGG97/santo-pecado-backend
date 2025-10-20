@@ -2,11 +2,9 @@ from django.db import models
 # Create your models here.
 class Tipo_Producto(models.Model):
     tipo_producto_nombre = models.CharField(max_length=200)
-
     class Meta:
         verbose_name = 'Tipo de Producto'
         verbose_name_plural = 'Tipos de Productos'
-    
     def __str__(self):
         return self.tipo_producto_nombre
     
@@ -23,13 +21,18 @@ class Categoria_Insumo(models.Model):
     
 
 class Producto(models.Model):
-    tipo_producto=models.ForeignKey(Tipo_Producto, on_delete=models.CASCADE)
+    tipo_producto=models.ForeignKey(Tipo_Producto, on_delete=models.PROTECT)
     producto_nombre=models.CharField(max_length=200)
     producto_descripcion=models.CharField(max_length=200)
     producto_precio=models.DecimalField(max_digits=10, decimal_places=2)
     producto_disponible=models.BooleanField(default=True)
     producto_fecha_hora_creacion=models.DateTimeField(auto_now_add=True)
-    producto_imagen=models.ImageField(upload_to='inventario/images', blank=True, null=True)
+    
+    # --- CAMPOS DE IMAGEN ACTUALIZADOS ---
+    # Para subir un archivo desde la computadora. Es opcional.
+    producto_imagen=models.ImageField(upload_to='productos/', blank=True, null=True)
+    # Para pegar una URL de una imagen externa. También opcional.
+    producto_imagen_url=models.URLField(max_length=500, blank=True, null=True)
     
     def __str__(self):
         return self.producto_nombre

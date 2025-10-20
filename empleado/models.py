@@ -19,6 +19,9 @@ class Empleado(models.Model):
     # Usamos el modelo 'Group' de Django como el 'Rol'.
     # Cada empleado tendrá UN solo rol.
     rol = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    failed_login_attempts = models.PositiveIntegerField(default=0)
+    lockout_until = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Empleado"
