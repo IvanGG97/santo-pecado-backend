@@ -35,11 +35,13 @@ admin.site.register(Producto, ProductoAdmin)
 
 
 class InsumoAdmin(admin.ModelAdmin):
-    list_display = ('insumo_nombre', 'categoria_insumo', 'insumo_unidad', 'insumo_stock', 'insumo_stock_minimo', 'insumo_precio_compra')
+    # Eliminamos 'insumo_precio_compra' de list_display
+    list_display = ('insumo_nombre', 'categoria_insumo', 'insumo_unidad', 'insumo_stock', 'insumo_stock_minimo')
     list_display_links = ('insumo_nombre',)
     search_fields = ('insumo_nombre',)
     list_filter = ('categoria_insumo',)
-    list_editable = ('insumo_stock', 'insumo_stock_minimo', 'insumo_precio_compra')
+    # Eliminamos 'insumo_precio_compra' de list_editable
+    list_editable = ('insumo_stock', 'insumo_stock_minimo')
     list_per_page = 25
     ordering = ('insumo_nombre',)
 

@@ -32,7 +32,7 @@ class Producto(models.Model):
     # Para subir un archivo desde la computadora. Es opcional.
     producto_imagen=models.ImageField(upload_to='productos/', blank=True, null=True)
     # Para pegar una URL de una imagen externa. También opcional.
-    producto_imagen_url=models.URLField(max_length=500, blank=True, null=True)
+    producto_imagen_url=models.TextField(blank=True, null=True)
     
     def __str__(self):
         return self.producto_nombre
@@ -46,7 +46,8 @@ class Insumo(models.Model):
     insumo_unidad=models.CharField(max_length=50) # Ej: 'kg', 'litro', 'unidad'
     insumo_stock=models.DecimalField(max_digits=10, decimal_places=2)
     insumo_stock_minimo=models.DecimalField(max_digits=10, decimal_places=2)
-    insumo_precio_compra=models.DecimalField(max_digits=10, decimal_places=2)
+    insumo_imagen=models.ImageField(upload_to='insumos/', blank=True, null=True)
+    insumo_imagen_url=models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.insumo_nombre
