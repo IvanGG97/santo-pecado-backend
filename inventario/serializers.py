@@ -27,8 +27,11 @@ class ProductoXInsumoReadSerializer(serializers.ModelSerializer):
 
 class ProductoSerializer(serializers.ModelSerializer):
     tipo_producto = serializers.StringRelatedField()
+    # --- ¡CAMPO AÑADIDO! ---
+    # Necesitamos el ID para que el frontend pueda filtrar
+    tipo_producto_id = serializers.PrimaryKeyRelatedField(source='tipo_producto', read_only=True) 
+    
     producto_imagen = serializers.ImageField(max_length=None, use_url=True, read_only=True)
-    # Mostramos la receta usando el related_name
     receta = ProductoXInsumoReadSerializer(many=True, source='producto_x_insumo_set', read_only=True)
 
     class Meta:
@@ -36,8 +39,8 @@ class ProductoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'producto_nombre', 'producto_descripcion', 'producto_precio',
             'producto_disponible', 'producto_imagen', 'producto_imagen_url', 
-            'tipo_producto', 'receta',
-            'producto_fecha_hora_creacion' # Campo de fecha re-añadido
+            'tipo_producto', 'tipo_producto_id', 'receta', # Campos añadidos
+            'producto_fecha_hora_creacion'
         ]
 
 # --- Serializer de Escritura (actualizado) ---

@@ -8,6 +8,10 @@ class Promocion(models.Model):
     promocion_fecha_hora_fin = models.DateTimeField(blank=True, null=True)
     promocion_stock= models.IntegerField()
     promocion_descripcion = models.TextField(blank=True, null=True)
+    # promocion_imagen = models.ImageField(upload_to='promociones/', blank=True, null=True)
+    promocion_imagen_url = models.TextField(blank=True, null=True)
+    promocion_estado=models.BooleanField(default=True)
+
 
     class Meta:
         verbose_name = 'Promocion'

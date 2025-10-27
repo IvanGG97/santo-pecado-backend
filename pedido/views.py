@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .models import Pedido, Estado_Pedido
-from .serializers import PedidoListSerializer, PedidoCreateSerializer, EstadoPedidoSerializer
+from .serializers import PedidoListSerializer, PedidoCreateSerializer, EstadoPedidoSerializer,PedidoUpdateSerializer
 
 class PedidoListCreateView(generics.ListCreateAPIView):
     """
@@ -19,19 +19,19 @@ class PedidoListCreateView(generics.ListCreateAPIView):
             return PedidoCreateSerializer
         return PedidoListSerializer
 
-    def perform_create(self, serializer):
-        # Asigna automáticamente el empleado logueado y el estado inicial al crear.
-        empleado = self.request.user.empleado
-        # Asume que el primer estado es "Recibido" o similar. ¡Asegúrate de que exista!
-        estado_inicial = Estado_Pedido.objects.first() 
-        serializer.save(empleado=empleado, estado_pedido=estado_inicial)
+    def get_serializer_context(self):
+        """
+        Pasa el 'request' completo al contexto del serializer.
+        Esto es crucial para que PedidoCreateSerializer pueda acceder a request.user.
+        """
+        return {'request': self.request}
 
 class PedidoDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     Vista para ver, actualizar (ej: cambiar estado) o eliminar un pedido específico.
     """
     queryset = Pedido.objects.all()
-    serializer_class = PedidoListSerializer
+    serializer_class = PedidoListSerializer # Usa el serializer de lectura para ver el detalle
     permission_classes = [permissions.IsAuthenticated] # O IsAdminUser si solo admins pueden modificar
 
 class EstadoPedidoListView(generics.ListAPIView):
@@ -41,3 +41,19 @@ class EstadoPedidoListView(generics.ListAPIView):
     queryset = Estado_Pedido.objects.all()
     serializer_class = EstadoPedidoSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+class PedidoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Vista para ver, actualizar (ej: cambiar estado) o eliminar un pedido específico.
+    """
+    queryset = Pedido.objects.all()
+    permission_classes = [permissions.IsAuthenticated] # O IsAdminUser si solo admins pueden modificar
+
+    # --- MÉTODO get_serializer_class AÑADIDO ---
+    def get_serializer_class(self):
+        """
+        Usa PedidoUpdateSerializer para PUT/PATCH, y PedidoListSerializer para GET.
+        """
+        if self.request.method in ['PUT', 'PATCH']:
+            return PedidoUpdateSerializer
+        return PedidoListSerializer # Serializer por defecto para GET
