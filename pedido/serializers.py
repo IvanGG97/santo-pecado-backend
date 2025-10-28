@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import Pedido, Detalle_Pedido, Estado_Pedido
 from inventario.models import Producto
 from empleado.models import Empleado
+from cliente.models import Cliente 
+from cliente.serializers import ClienteSerializer
 
 # --- Serializers para LEER (mostrar datos) ---
 
@@ -16,14 +18,18 @@ class PedidoListSerializer(serializers.ModelSerializer):
     estado_pedido = serializers.StringRelatedField()
     detalles = DetallePedidoSerializer(many=True, read_only=True)
     total_pedido = serializers.SerializerMethodField()
+    # --- CAMBIO: Usar ClienteSerializer anidado ---
+    # Esto incluirá todos los campos definidos en ClienteSerializer (nombre, direccion, etc.)
+    # allow_null=True asegura que funcione si no hay cliente asociado
+    cliente = ClienteSerializer(read_only=True, allow_null=True)
 
     class Meta:
         model = Pedido
-        fields = ['id', 'empleado', 'estado_pedido', 'pedido_fecha_hora', 'detalles', 'total_pedido']
+        # 'cliente' ya estaba en fields, pero ahora devolverá el objeto completo
+        fields = ['id', 'cliente', 'empleado', 'estado_pedido', 'pedido_fecha_hora', 'detalles', 'total_pedido']
 
     def get_total_pedido(self, obj):
-        return sum(item.cantidad * item.precio_unitario for item in obj.detalles.all())
-
+        return sum(item.cantidad * (item.precio_unitario or 0) for item in obj.detalles.all())
 # --- Serializers para ESCRIBIR (crear un nuevo pedido) ---
 
 class DetallePedidoCreateSerializer(serializers.Serializer):
@@ -40,42 +46,57 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
     Serializer principal para crear un Pedido con todos sus detalles.
     """
     detalles = DetallePedidoCreateSerializer(many=True, write_only=True)
+    # --- CAMPO CLIENTE AÑADIDO (Escritura) ---
+    # Espera recibir el ID del cliente. Es opcional.
+    cliente = serializers.PrimaryKeyRelatedField(
+        queryset=Cliente.objects.all(), 
+        required=False, # No es obligatorio asociar un cliente
+        allow_null=True # Permite enviar null explícitamente
+    )
 
     class Meta:
         model = Pedido
-        fields = ['detalles']
+        # Añadir 'cliente' a la lista de fields
+        fields = ['cliente', 'detalles'] 
+        # Nota: 'empleado' y 'estado_pedido' se asignan automáticamente en el método create.
     
     def create(self, validated_data):
+        # Verifica si el usuario tiene un perfil de empleado asociado
         if not hasattr(self.context['request'].user, 'empleado'):
             raise serializers.ValidationError("El usuario que realiza el pedido no tiene un perfil de empleado asociado.")
         
         empleado = self.context['request'].user.empleado
-        estado_inicial = Estado_Pedido.objects.first()
+        
+        # Busca el estado inicial (podrías hacerlo más robusto buscando por nombre si tienes varios)
+        # Asegúrate de que exista al menos un estado en la BD.
+        estado_inicial = Estado_Pedido.objects.order_by('id').first() 
         if not estado_inicial:
             raise serializers.ValidationError("No se encontró un estado inicial para el pedido. Por favor, cree uno en el panel de administrador.")
 
         detalles_data = validated_data.pop('detalles')
         
+        # El campo 'cliente' (si vino en validated_data) se pasará automáticamente aquí
         pedido = Pedido.objects.create(
             empleado=empleado, 
             estado_pedido=estado_inicial, 
-            **validated_data
+            **validated_data # Pasa 'cliente' y cualquier otro campo validado del Meta
         )
 
-        # --- LÓGICA DE CREACIÓN DE DETALLES CORREGIDA ---
+        # --- LÓGICA DE CREACIÓN DE DETALLES (sin cambios respecto a cliente) ---
         for detalle_data in detalles_data:
-            producto_obj = detalle_data.get('producto')
-            notas_finales = detalle_data.get('notas', '')
+            producto_obj = detalle_data.get('producto') 
+            notas_finales = detalle_data.get('notas', None) # Obtener notas, default None
 
-            # Si las notas están vacías y es un producto, usamos el nombre del producto.
-            if not notas_finales and producto_obj:
-                notas_finales = producto_obj.producto_nombre
+            # Si las notas son None y es un producto (no promo), usamos el nombre del producto.
+            if notas_finales is None and producto_obj:
+                 notas_finales = producto_obj.producto_nombre
+            # Si las notas son una cadena vacía, se guardará como vacía.
 
             Detalle_Pedido.objects.create(
                 pedido=pedido,
                 producto=producto_obj,
                 cantidad=detalle_data['cantidad'],
-                notas=notas_finales,
+                notas=notas_finales, # Guarda la nota procesada (puede ser nombre, personalización, o None/vacía)
                 precio_unitario=detalle_data['precio_unitario'] # ¡USA EL PRECIO DEL FRONTEND!
             )
         return pedido

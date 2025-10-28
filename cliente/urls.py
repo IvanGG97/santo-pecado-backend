@@ -1,14 +1,8 @@
-from rest_framework.routers import DefaultRouter
-from .views import ClienteViewSet
+# cliente/urls.py
+from django.urls import path
+from .views import ClienteListCreateView, ClienteDetailView
 
-# Creamos un router para registrar automáticamente las rutas del ViewSet.
-router = DefaultRouter()
-
-# Registramos el ViewSet de Cliente.
-# Esto creará las rutas para:
-# - /clientes/ (GET para listar, POST para crear)
-# - /clientes/{pk}/ (GET para detalle, PUT/PATCH para actualizar, DELETE para borrar)
-router.register(r'clientes', ClienteViewSet, basename='cliente')
-
-# Las URLs generadas por el router se incluyen en urlpatterns.
-urlpatterns = router.urls
+urlpatterns = [
+    path('clientes/', ClienteListCreateView.as_view(), name='cliente-list-create'),
+    path('clientes/<int:pk>/', ClienteDetailView.as_view(), name='cliente-detail'),
+]
