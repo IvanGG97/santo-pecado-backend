@@ -1,114 +1,66 @@
 from rest_framework import serializers
 from .models import Venta, Detalle_Venta, Estado_Venta
-from cliente.models import Cliente
-from empleado.models import Empleado
-from caja.models import Caja
+from pedido.models import Pedido, Detalle_Pedido # Importar Detalle_Pedido
 from inventario.models import Producto
+from cliente.serializers import ClienteSerializer
+from empleado.serializers import EmpleadoSerializer # Importamos el EmpleadoSerializer existente
 
-# --- Serializers Simples ---
-
+# --- Serializer para Listar Estados de Venta (Lectura) ---
 class EstadoVentaSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el modelo Estado_Venta.
-    """
     class Meta:
         model = Estado_Venta
-        fields = '__all__'
+        fields = ['id', 'estado_venta_nombre']
+
+# --- Serializer para los Detalles del Pedido (con notas) ---
+class DetallePedidoParaVentaSerializer(serializers.ModelSerializer):
+    producto_nombre = serializers.CharField(source='producto.producto_nombre', read_only=True, allow_null=True)
+    class Meta:
+        model = Detalle_Pedido
+        fields = ['id', 'producto_nombre', 'cantidad', 'precio_unitario', 'notas'] # <-- Incluimos 'notas'
 
 
-# --- Serializers de Lectura (Para GET requests) ---
-# Estos serializers están optimizados para mostrar la información de una
-# forma clara y legible, anidando detalles y mostrando nombres en lugar de IDs.
-
-class DetalleVentaReadSerializer(serializers.ModelSerializer):
-    """
-    Muestra los detalles de una venta, incluyendo el nombre del producto.
-    """
-    # Suponiendo que el modelo Producto tiene un campo 'producto_nombre'.
-    producto_nombre = serializers.CharField(source='producto.producto_nombre', read_only=True)
+# --- Serializer para el Pedido (ACTUALIZADO) ---
+class PedidoParaVentaSerializer(serializers.ModelSerializer):
+    detalles = DetallePedidoParaVentaSerializer(many=True, read_only=True)
+    
+    # --- CAMBIO AQUÍ: Añadir estado_pedido ---
+    # Usamos StringRelatedField para obtener el nombre (ej: "En Preparación")
+    estado_pedido = serializers.StringRelatedField(read_only=True)
+    # --- FIN CAMBIO ---
 
     class Meta:
-        model = Detalle_Venta
-        fields = [
-            'id', 
-            'producto', 
-            'producto_nombre', 
-            'detalle_venta_cantidad', 
-            'detalle_venta_precio_unitario', 
-            'detalle_venta_descuento'
-        ]
+        model = Pedido
+        # --- CAMBIO AQUÍ: Añadir 'estado_pedido' a fields ---
+        fields = ['id', 'detalles', 'estado_pedido']
 
-class VentaReadSerializer(serializers.ModelSerializer):
-    """
-    Muestra una venta con toda su información relacionada de forma detallada.
-    """
-    # Usamos StringRelatedField para mostrar el __str__ del modelo relacionado.
-    cliente = serializers.StringRelatedField()
-    empleado = serializers.StringRelatedField()
-    caja = serializers.StringRelatedField()
-    pedido = serializers.StringRelatedField()
-    estado_venta = serializers.StringRelatedField()
 
-    # Anidamos los detalles de la venta usando el serializer de lectura.
-    # 'detalle_venta_set' es el related_name por defecto que Django crea.
-    detalles = DetalleVentaReadSerializer(source='detalle_venta_set', many=True, read_only=True)
+# --- Serializer para Listar Ventas (Lectura) ---
+class VentaListSerializer(serializers.ModelSerializer):
+    cliente = ClienteSerializer(read_only=True, allow_null=True)
+    empleado = EmpleadoSerializer(source='empleado.user', read_only=True) 
+    estado_venta = EstadoVentaSerializer(read_only=True) 
+    pedido = PedidoParaVentaSerializer(read_only=True) # Este serializer ahora incluye el estado del pedido
 
     class Meta:
         model = Venta
         fields = [
-            'id', 'cliente', 'empleado', 'caja', 'pedido', 'estado_venta', 
-            'venta_fecha_hora', 'venta_total', 'venta_medio_pago', 
-            'venta_descuento', 'detalles'
+            'id',
+            'cliente',
+            'empleado',
+            'caja',
+            'pedido', # <-- 'pedido' ahora contiene 'id', 'detalles' y 'estado_pedido'
+            'estado_venta',
+            'venta_fecha_hora',
+            'venta_total',
+            'venta_medio_pago',
+            'venta_descuento',
         ]
 
-
-# --- Serializers de Escritura (Para POST/PUT requests) ---
-# Estos serializers están diseñados para recibir datos y crear nuevos
-# objetos en la base de datos, manejando la creación anidada de detalles.
-
-class DetalleVentaWriteSerializer(serializers.ModelSerializer):
-    """
-    Define los campos que se esperan para cada detalle al crear una venta.
-    """
-    class Meta:
-        model = Detalle_Venta
-        # El campo 'venta' se asignará automáticamente en la lógica de creación.
-        fields = [
-            'producto', 
-            'detalle_venta_cantidad', 
-            'detalle_venta_precio_unitario', 
-            'detalle_venta_descuento'
-        ]
-
-class VentaWriteSerializer(serializers.ModelSerializer):
-    """
-    Permite crear una Venta y sus Detalles en una sola petición POST.
-    """
-    # Campo para recibir la lista de detalles de la venta.
-    # 'write_only=True' significa que este campo se usa para crear/actualizar,
-    # pero no se mostrará al leer una venta.
-    detalles = DetalleVentaWriteSerializer(many=True, write_only=True)
+# --- Serializer para Actualizar Venta (Escritura) ---
+class VentaUpdateSerializer(serializers.ModelSerializer):
+    estado_venta = serializers.PrimaryKeyRelatedField(queryset=Estado_Venta.objects.all())
+    venta_medio_pago = serializers.ChoiceField(choices=Venta.MEDIO_PAGO_CHOICES)
 
     class Meta:
         model = Venta
-        fields = [
-            'cliente', 'empleado', 'caja', 'pedido', 'estado_venta',
-            'venta_total', 'venta_medio_pago', 'venta_descuento', 'detalles'
-        ]
-
-    def create(self, validated_data):
-        """
-        Sobrescribimos el método create para manejar la creación anidada.
-        """
-        # 1. Extraemos los datos de los detalles del diccionario validado.
-        detalles_data = validated_data.pop('detalles')
-        
-        # 2. Creamos el objeto Venta principal con el resto de los datos.
-        venta = Venta.objects.create(**validated_data)
-        
-        # 3. Iteramos sobre los datos de los detalles y creamos cada objeto Detalle_Venta,
-        #    asociándolo a la Venta que acabamos de crear.
-        for detalle_data in detalles_data:
-            Detalle_Venta.objects.create(venta=venta, **detalle_data)
-            
-        return venta
+        fields = ['estado_venta', 'venta_medio_pago']

@@ -19,17 +19,15 @@ class Estado_Venta(models.Model):
     
 
 class Venta(models.Model):
-    cliente=models.ForeignKey(Cliente,on_delete=models.CASCADE)
+    cliente=models.ForeignKey(Cliente,on_delete=models.SET_NULL, null=True, blank=True)
     empleado=models.ForeignKey(Empleado, on_delete=models.CASCADE)
-    caja=models.ForeignKey(Caja,on_delete=models.CASCADE)
+    caja=models.ForeignKey(Caja,on_delete=models.SET_NULL, null=True, blank=True)
     pedido=models.ForeignKey(Pedido,on_delete=models.SET_NULL, null=True, blank=True)
     estado_venta=models.ForeignKey(Estado_Venta,on_delete=models.CASCADE)
     venta_fecha_hora=models.DateTimeField(auto_now_add=True)
     venta_total=models.DecimalField(max_digits=10, decimal_places=2)
     MEDIO_PAGO_CHOICES = (
         ('efectivo', 'Efectivo'),
-        ('tarjeta_credito', 'Tarjeta de Crédito'),
-        ('tarjeta_debito', 'Tarjeta de Débito'),
         ('transferencia', 'Transferencia'),
     )
     venta_medio_pago=models.CharField(max_length=20, choices=MEDIO_PAGO_CHOICES, default='efectivo')

@@ -1,64 +1,50 @@
 from rest_framework import generics, permissions
 from .models import Venta, Estado_Venta
 from .serializers import (
-    VentaReadSerializer,
-    VentaWriteSerializer,
+    VentaListSerializer, 
+    VentaUpdateSerializer, 
     EstadoVentaSerializer
 )
 
-# --- Vistas para el modelo Venta ---
-
+# --- Vista para LISTAR Ventas ---
 class VentaListCreateView(generics.ListCreateAPIView):
     """
-    Vista de API para listar todas las ventas o crear una nueva venta.
-    - GET: Devuelve una lista de todas las ventas.
-    - POST: Crea una nueva venta junto con sus detalles.
+    Vista para listar (GET) todas las ventas.
     """
-    queryset = Venta.objects.select_related(
-        'cliente', 'empleado', 'caja', 'pedido', 'estado_venta'
-    ).prefetch_related('detalle_venta_set__producto').all().order_by('-venta_fecha_hora')
+    queryset = Venta.objects.all().select_related(
+        'cliente', 
+        'empleado__user', # Optimizar joins
+        'caja', 
+        'pedido', 
+        'estado_venta'
+    ).prefetch_related(
+        'pedido__detalles__producto' # Optimizar prefetch
+    ).order_by('-venta_fecha_hora') # Más nuevas primero
     
-    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = VentaListSerializer
+    permission_classes = [permissions.IsAuthenticated] # Ajustar permisos
 
-    def get_serializer_class(self):
-        """
-        Determina qué serializador usar según el método de la petición.
-        - Usa VentaReadSerializer para peticiones GET (lectura).
-        - Usa VentaWriteSerializer para peticiones POST (escritura).
-        """
-        if self.request.method == 'POST':
-            return VentaWriteSerializer
-        return VentaReadSerializer
 
+# --- VISTA DE DETALLE (Para PATCH/PUT) ---
 class VentaDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    Vista de API para ver, actualizar o eliminar una venta específica.
-    - GET: Devuelve los detalles de una venta específica por su ID.
-    - PUT/PATCH: Actualiza una venta.
-    - DELETE: Elimina una venta.
+    Vista para Ver (GET), Actualizar (PUT/PATCH) una venta específica.
     """
     queryset = Venta.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
-
+    permission_classes = [permissions.IsAuthenticated] # Ajustar permisos
+    
+    # Devuelve el serializer correcto según la acción (Leer vs Escribir)
     def get_serializer_class(self):
-        """
-        Usa el serializador de lectura para mostrar los datos.
-        Para actualizar, se podría necesitar un serializador de escritura específico,
-        pero por simplicidad, se puede reutilizar o adaptar según la necesidad.
-        """
-        # En una aplicación real, la lógica de actualización para datos anidados
-        # puede requerir un VentaUpdateSerializer dedicado. Por ahora,
-        # la lectura usará el ReadSerializer.
-        return VentaReadSerializer
+        if self.request.method in ['PUT', 'PATCH']:
+            return VentaUpdateSerializer # Serializer de escritura (para guardar)
+        return VentaListSerializer # Serializer de lectura (para ver)
 
-
-# --- Vistas para modelos relacionados ---
-
+# --- Vista para LISTAR Estados de Venta ---
 class EstadoVentaListView(generics.ListAPIView):
     """
-    Vista de API para listar todos los estados de venta disponibles.
-    Útil para llenar menús desplegables en el frontend.
+    Vista para obtener la lista de todos los posibles estados de venta.
+    (Para los dropdowns en el frontend)
     """
-    queryset = Estado_Venta.objects.all()
+    queryset = Estado_Venta.objects.all().order_by('id')
     serializer_class = EstadoVentaSerializer
     permission_classes = [permissions.IsAuthenticated]

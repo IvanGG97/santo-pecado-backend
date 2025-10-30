@@ -4,6 +4,7 @@ from inventario.models import Producto
 from empleado.models import Empleado
 from cliente.models import Cliente 
 from cliente.serializers import ClienteSerializer
+from venta.models import Venta, Detalle_Venta, Estado_Venta
 
 # --- Serializers para LEER (mostrar datos) ---
 
@@ -61,45 +62,99 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
         # Nota: 'empleado' y 'estado_pedido' se asignan automáticamente en el método create.
     
     def create(self, validated_data):
-        # Verifica si el usuario tiene un perfil de empleado asociado
+        # --- 1. OBTENER DATOS DEL PEDIDO ---
         if not hasattr(self.context['request'].user, 'empleado'):
             raise serializers.ValidationError("El usuario que realiza el pedido no tiene un perfil de empleado asociado.")
         
         empleado = self.context['request'].user.empleado
-        
-        # Busca el estado inicial (podrías hacerlo más robusto buscando por nombre si tienes varios)
-        # Asegúrate de que exista al menos un estado en la BD.
-        estado_inicial = Estado_Pedido.objects.order_by('id').first() 
-        if not estado_inicial:
-            raise serializers.ValidationError("No se encontró un estado inicial para el pedido. Por favor, cree uno en el panel de administrador.")
+        estado_inicial_pedido = Estado_Pedido.objects.order_by('id').first() 
+        if not estado_inicial_pedido:
+            raise serializers.ValidationError("No se encontró un estado inicial para el Pedido.")
 
         detalles_data = validated_data.pop('detalles')
-        
-        # El campo 'cliente' (si vino en validated_data) se pasará automáticamente aquí
+        cliente_obj = validated_data.pop('cliente', None) # Obtener el objeto Cliente (o None)
+
+        # --- 2. CREAR PEDIDO Y DETALLES DE PEDIDO ---
         pedido = Pedido.objects.create(
             empleado=empleado, 
-            estado_pedido=estado_inicial, 
-            **validated_data # Pasa 'cliente' y cualquier otro campo validado del Meta
+            estado_pedido=estado_inicial_pedido, 
+            cliente=cliente_obj, # Asigna el cliente (o None)
+            **validated_data
         )
 
-        # --- LÓGICA DE CREACIÓN DE DETALLES (sin cambios respecto a cliente) ---
+        total_calculado = 0
+        detalles_pedido_para_crear = []
         for detalle_data in detalles_data:
-            producto_obj = detalle_data.get('producto') 
-            notas_finales = detalle_data.get('notas', None) # Obtener notas, default None
+            producto_obj = detalle_data.get('producto')
+            notas_finales = detalle_data.get('notas', None)
 
-            # Si las notas son None y es un producto (no promo), usamos el nombre del producto.
             if notas_finales is None and producto_obj:
                  notas_finales = producto_obj.producto_nombre
-            # Si las notas son una cadena vacía, se guardará como vacía.
+            
+            # Calcular total
+            total_calculado += (detalle_data['cantidad'] * detalle_data['precio_unitario'])
 
-            Detalle_Pedido.objects.create(
-                pedido=pedido,
-                producto=producto_obj,
-                cantidad=detalle_data['cantidad'],
-                notas=notas_finales, # Guarda la nota procesada (puede ser nombre, personalización, o None/vacía)
-                precio_unitario=detalle_data['precio_unitario'] # ¡USA EL PRECIO DEL FRONTEND!
+            detalles_pedido_para_crear.append(
+                Detalle_Pedido(
+                    pedido=pedido,
+                    producto=producto_obj,
+                    cantidad=detalle_data['cantidad'],
+                    notas=notas_finales,
+                    precio_unitario=detalle_data['precio_unitario']
+                )
             )
-        return pedido
+        
+        # Crear detalles de pedido en lote
+        Detalle_Pedido.objects.bulk_create(detalles_pedido_para_crear)
+
+        # --- 3. NUEVA LÓGICA: CREAR VENTA Y DETALLES DE VENTA ---
+        try:
+            # Obtener el estado inicial para la Venta (ej: "Pendiente" o "Pagada")
+            # Asegúrate de tener al menos un Estado_Venta en tu BD
+            estado_inicial_venta = Estado_Venta.objects.order_by('id').first()
+            if not estado_inicial_venta:
+                 # Si no hay estado de venta, solo loggea la advertencia pero no falles el pedido
+                print("ADVERTENCIA: No se pudo crear la Venta. No se encontró un Estado_Venta inicial.")
+                return pedido # Devuelve el pedido que sí se creó
+
+            # Crear la Venta principal
+            nueva_venta = Venta.objects.create(
+                cliente=cliente_obj,        # Asigna el mismo cliente (o None)
+                empleado=empleado,          # Asigna el mismo empleado
+                caja=None,                  # Asigna None (asumiendo que hiciste el cambio en models.py)
+                pedido=pedido,              # Vincula la venta al pedido
+                estado_venta=estado_inicial_venta,
+                venta_total=total_calculado, # Asigna el total calculado
+                venta_medio_pago='efectivo',  # Asumimos 'efectivo' como default, ya que el pedido no incluye esta info
+                venta_descuento=0           # Asumimos 0 descuento por ahora
+            )
+
+            # Copiar los detalles del pedido a los detalles de la venta
+            detalles_venta_para_crear = []
+            for detalle_data in detalles_data:
+                # Solo añade detalles que sean productos reales (no el item de promo "padre")
+                if detalle_data.get('producto'):
+                    detalles_venta_para_crear.append(
+                        Detalle_Venta(
+                            venta=nueva_venta,
+                            producto=detalle_data.get('producto'),
+                            detalle_venta_cantidad=detalle_data['cantidad'],
+                            detalle_venta_precio_unitario=detalle_data['precio_unitario'],
+                            detalle_venta_descuento=0
+                        )
+                    )
+            
+            # Crear detalles de venta en lote
+            Detalle_Venta.objects.bulk_create(detalles_venta_para_crear)
+
+        except Exception as e:
+            # Si la creación de la Venta falla (ej. por validación o error de BD),
+            # no revertimos el Pedido (ya se creó). Solo informamos en la consola.
+            print(f"ADVERTENCIA: El Pedido N°{pedido.id} se creó, pero la Venta automática falló: {e}")
+        
+        # --- FIN NUEVA LÓGICA ---
+
+        return pedido # Devuelve el pedido original
 
 # --- Serializer para listar los estados de pedido ---
 class EstadoPedidoSerializer(serializers.ModelSerializer):
