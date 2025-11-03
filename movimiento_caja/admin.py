@@ -1,60 +1,54 @@
 from django.contrib import admin
 from .models import Egreso, Ingreso
 
-# --- ModelAdmin para Egreso ---
 @admin.register(Egreso)
 class EgresoAdmin(admin.ModelAdmin):
-    # Campos que se mostrarán en la vista de lista del admin
-    list_display = (
-        'caja', 
-        'egreso_monto', 
-        'egreso_descripcion', 
-        'egreso_fecha_hora'
-    )
+    """
+    Configuración del Admin para Egresos.
+    """
+    list_display = ('id', 'caja', 'egreso_descripcion', 'egreso_monto', 'egreso_fecha_hora')
+    list_filter = ('caja', 'egreso_fecha_hora')
+    search_fields = ('egreso_descripcion',)
+    date_hierarchy = 'egreso_fecha_hora'
+    list_per_page = 25
     
-    # Filtros laterales para búsqueda rápida por fecha y caja
-    list_filter = (
-        'caja', 
-        'egreso_fecha_hora'
-    )
-    
-    # Campos que se pueden buscar
-    search_fields = (
-        'egreso_descripcion', 
-        'caja__id' # Permite buscar por el ID de la caja
-    )
-    
-    # Campos que se muestran como solo lectura (se establecen automáticamente)
-    readonly_fields = ('egreso_fecha_hora',)
-    
-    # Ordenar por fecha y hora de forma descendente por defecto
-    ordering = ('-egreso_fecha_hora',)
+    # Hacemos que los campos sean de solo lectura en el admin,
+    # ya que deberían crearse desde la app y no manualmente.
+    readonly_fields = ('caja', 'egreso_descripcion', 'egreso_monto', 'egreso_fecha_hora')
 
-# --- ModelAdmin para Ingreso ---
+    def has_add_permission(self, request):
+        # Deshabilita el botón "Añadir Egreso" en el admin
+        return False
+        
+    def has_change_permission(self, request, obj=None):
+        # Deshabilita la edición (pero permite ver)
+        return False
+
 @admin.register(Ingreso)
 class IngresoAdmin(admin.ModelAdmin):
-    # Campos que se mostrarán en la vista de lista del admin
-    list_display = (
-        'caja', 
-        'ingreso_monto', 
-        'ingreso_descripcion', 
-        'ingreso_fecha_hora'
-    )
+    """
+    Configuración del Admin para Ingresos.
+    """
+    list_display = ('id', 'caja', 'ingreso_descripcion', 'ingreso_monto', 'ingreso_fecha_hora')
+    list_filter = ('caja', 'ingreso_fecha_hora')
+    search_fields = ('ingreso_descripcion',)
+    date_hierarchy = 'ingreso_fecha_hora'
+    list_per_page = 25
     
-    # Filtros laterales para búsqueda rápida por fecha y caja
-    list_filter = (
-        'caja', 
-        'ingreso_fecha_hora'
-    )
-    
-    # Campos que se pueden buscar
-    search_fields = (
-        'ingreso_descripcion', 
-        'caja__id' # Permite buscar por el ID de la caja
-    )
-    
-    # Campos que se muestran como solo lectura
-    readonly_fields = ('ingreso_fecha_hora',)
-    
-    # Ordenar por fecha y hora de forma descendente por defecto
-    ordering = ('-ingreso_fecha_hora',)
+    # Solo lectura
+    readonly_fields = ('caja', 'ingreso_descripcion', 'ingreso_monto', 'ingreso_fecha_hora')
+
+    def has_add_permission(self, request):
+        # Deshabilita el botón "Añadir Ingreso" en el admin
+        return False
+        
+    def has_change_permission(self, request, obj=None):
+        # Deshabilita la edición
+        return False
+
+# Nota: Si prefieres poder crearlos y editarlos manualmente desde el admin,
+# simplemente borra las clases EgresoAdmin e IngresoAdmin
+# y descomenta las siguientes dos líneas:
+#
+# admin.site.register(Egreso)
+# admin.site.register(Ingreso)

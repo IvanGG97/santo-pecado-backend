@@ -1,33 +1,59 @@
-from rest_framework import viewsets, permissions
-from .models import Proveedor, Compra, Detalle_Compra
-from .serializers import ProveedorSerializer, CompraSerializer, DetalleCompraSerializer
+from rest_framework import viewsets, permissions, mixins
+from .models import Proveedor, Compra
+from .serializers import (
+    ProveedorSerializer,
+    CompraListSerializer,
+    CompraCreateSerializer,
+)
 
-# --- ViewSet para Proveedor (CRUD simple) ---
+
 class ProveedorViewSet(viewsets.ModelViewSet):
-    """Permite listar, crear, recuperar, actualizar y eliminar proveedores."""
-    # Ordenamos por nombre para que la lista sea fácil de navegar
-    queryset = Proveedor.objects.all().order_by('proveedor_nombre')
-    serializer_class = ProveedorSerializer
-    # Solo usuarios autenticados (empleados) pueden gestionar proveedores
-    permission_classes = [permissions.IsAuthenticated]
-    search_fields = ['proveedor_nombre', 'proveedor_dni']
-
-# --- ViewSet para Compra (CRUD complejo con lógica de negocio) ---
-class CompraViewSet(viewsets.ModelViewSet):
-    """Permite listar, crear, recuperar, actualizar y eliminar compras,
-    incluyendo la lógica para el total y actualización de stock en la creación.
     """
-    # Usamos select_related para optimizar la consulta y obtener datos relacionados
-    queryset = Compra.objects.all().select_related('proveedor', 'empleado', 'caja').order_by('-compra_fecha_hora')
-    serializer_class = CompraSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    # Filtros por los que se puede buscar rápidamente
-    filterset_fields = ['proveedor', 'empleado', 'caja', 'compra_metodo_pago']
-    search_fields = ['proveedor__proveedor_nombre', 'empleado__empleado_nombre']
-    
-# --- ViewSet para Detalle_Compra (Solo para referencia) ---
-class DetalleCompraViewSet(viewsets.ModelViewSet):
-    """Permite listar y ver detalles de las líneas de compra."""
-    queryset = Detalle_Compra.objects.all()
-    serializer_class = DetalleCompraSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    API endpoint para CRUD completo de Proveedores.
+    """
+
+    queryset = Proveedor.objects.all().order_by("proveedor_nombre")
+    serializer_class = ProveedorSerializer
+    permission_classes = [permissions.IsAuthenticated]  # O [permissions.IsAdminUser]
+
+
+class CompraViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    API endpoint para Compras:
+    - POST (create): Crear una nueva compra (y actualizar stock).
+    - GET (list): Ver lista de compras.
+    - GET (retrieve): Ver detalle de una compra.
+
+    (No se permite Update (PUT/PATCH) ni Delete para mantener integridad)
+    """
+
+    queryset = (
+        Compra.objects.all()
+        .select_related("proveedor", "empleado__user", "caja")
+        .prefetch_related("detalle_compra_set__insumo")  # Optimiza la carga de detalles
+        .order_by("-compra_fecha_hora")
+    )  # Más nuevas primero
+
+    permission_classes = [permissions.IsAuthenticated]  # O [permissions.IsAdminUser]
+
+    def get_serializer_class(self):
+        """
+        Elige el serializer según la acción (Crear vs Listar/Ver)
+        """
+        if self.action == "create":
+            return CompraCreateSerializer
+        return CompraListSerializer
+
+    def get_serializer_context(self):
+        """
+        Pasa el 'request' al serializer para que podamos acceder a 'request.user'
+        al momento de crear la compra.
+        """
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context

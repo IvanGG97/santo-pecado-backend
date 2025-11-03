@@ -1,93 +1,75 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework import generics, permissions, status, views, serializers
 from rest_framework.response import Response
-from django.utils import timezone
-from django.shortcuts import get_object_or_404
+from decimal import Decimal # <-- 1. IMPORTAR DECIMAL
 from .models import Caja
-from .serializers import CajaSerializer # Necesitamos el serializer previamente definido
+from .serializers import CajaListSerializer, CajaCreateSerializer, CajaCloseSerializer
 
-class CajaViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para listar y consultar Cajas. 
-    Implementa acciones específicas para Abrir y Cerrar la caja.
-    """
-    queryset = Caja.objects.all().order_by('-caja_fecha_hora_apertura')
-    serializer_class = CajaSerializer
+class CajaHistoryView(generics.ListAPIView):
+    queryset = Caja.objects.all().select_related('empleado__user').order_by('-caja_fecha_hora_apertura')
+    serializer_class = CajaListSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    # --- Permite solo la consulta de una caja por ID (GET) ---
-    # La creación se manejará con la acción 'abrir'
-    # La actualización y eliminación se deshabilitan por seguridad, 
-    # ya que modificar historiales de caja es peligroso.
-    http_method_names = ['get', 'head', 'options']
+class CajaStatusView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
-    # ----------------------------------------------------------------------
-    # ACCIÓN PERSONALIZADA: /caja/abrir/
-    # Se usa para iniciar una nueva caja.
-    # ----------------------------------------------------------------------
-    @action(detail=False, methods=['post'])
-    def abrir(self, request):
-        """
-        Abre una nueva caja. Requiere 'empleado_x_rol' y 'caja_monto_inicial'.
-        La validación de caja abierta la maneja el Serializer.
-        """
-        # El serializer solo recibe los campos necesarios para la apertura
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        # La creación se realiza normalmente a través del serializer
-        self.perform_create(serializer)
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    # ----------------------------------------------------------------------
-    # ACCIÓN PERSONALIZADA: /caja/{pk}/cerrar/
-    # Se usa para cerrar una caja existente.
-    # ----------------------------------------------------------------------
-    @action(detail=True, methods=['post'])
-    def cerrar(self, request, pk=None):
-        """
-        Cierra una caja específica. Requiere el ID de la caja (pk) y opcionalmente
-        'caja_saldo_final' y 'caja_observacion' en el cuerpo de la petición.
-        """
-        caja = get_object_or_404(Caja, pk=pk)
-
-        if not caja.caja_estado:
-            return Response({'error': 'La caja ya se encuentra cerrada.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Datos a actualizar para el cierre
-        datos_cierre = {
-            'caja_estado': False, # Cambiar estado a cerrado
-            'caja_fecha_hora_cierre': timezone.now(),
-            'caja_saldo_final': request.data.get('caja_saldo_final'), # Saldo final reportado
-            'caja_observacion': request.data.get('caja_observacion', caja.caja_observacion)
-        }
-        
-        # Opcional: Aquí podrías añadir lógica para calcular el 'caja_saldo_final' 
-        # automáticamente sumando todos los Ingresos y restando Egresos/Ventas.
-        # Por ahora, se espera que el frontend o una lógica interna lo provea.
-
-        # Actualizar la instancia de la caja con los datos de cierre
-        serializer = self.get_serializer(caja, data=datos_cierre, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    # ----------------------------------------------------------------------
-    # ACCIÓN PERSONALIZADA: /caja/abierta/
-    # Se usa para obtener la caja que está actualmente activa para el usuario (si aplica).
-    # ----------------------------------------------------------------------
-    @action(detail=False, methods=['get'])
-    def abierta(self, request):
-        """
-        Obtiene la última caja que se encuentra en estado 'abierta'.
-        """
-        # Nota: Aquí se necesitaría lógica de negocio avanzada si tuvieras el Empleado
-        # autenticado. Por simplicidad, busca la última caja abierta.
+    def get(self, request, *args, **kwargs):
         try:
-            caja_abierta = Caja.objects.filter(caja_estado=True).latest('caja_fecha_hora_apertura')
-            serializer = self.get_serializer(caja_abierta)
-            return Response(serializer.data)
+            caja_abierta = Caja.objects.get(caja_estado=True)
+            serializer = CajaListSerializer(caja_abierta, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
         except Caja.DoesNotExist:
-            return Response({'error': 'No hay ninguna caja abierta en este momento.'}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                ultima_caja_cerrada = Caja.objects.filter(caja_estado=False).latest('caja_fecha_hora_cierre')
+                monto_sugerido = ultima_caja_cerrada.caja_saldo_final
+            except Caja.DoesNotExist:
+                # --- 2. CORREGIR EL TIPO DE DATO ---
+                monto_sugerido = Decimal('0.00') # <-- CORREGIDO (era 0.00)
+            
+            return Response({
+                "caja_estado": False, 
+                "detail": "No hay ninguna caja abierta.",
+                "monto_sugerido_apertura": monto_sugerido
+            }, status=status.HTTP_200_OK)
+
+        except Caja.MultipleObjectsReturned:
+            return Response({"caja_estado": False, "detail": "Error: Hay múltiples cajas abiertas. Cierre todas manualmente."}, status=status.HTTP_400_BAD_REQUEST)
+
+class AbrirCajaView(generics.CreateAPIView):
+    queryset = Caja.objects.none()
+    serializer_class = CajaCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        if Caja.objects.filter(caja_estado=True).exists():
+            raise serializers.ValidationError("Ya hay una caja abierta. Debe cerrarla antes de abrir una nueva.")
+        
+        if not hasattr(self.request.user, 'empleado'):
+            raise serializers.ValidationError("Usuario no asociado a un empleado.")
+        empleado = self.request.user.empleado
+
+        monto_inicial_enviado = serializer.validated_data.get('caja_monto_inicial')
+        monto_final_a_usar = Decimal('0.00') # <-- CORREGIDO (era 0.00)
+
+        try:
+            ultima_caja_cerrada = Caja.objects.filter(caja_estado=False).latest('caja_fecha_hora_cierre')
+            monto_final_a_usar = ultima_caja_cerrada.caja_saldo_final
+        except Caja.DoesNotExist:
+            if monto_inicial_enviado is None or monto_inicial_enviado < 0:
+                 raise serializers.ValidationError("Es la primera caja. Debe proveer un monto inicial válido.")
+            monto_final_a_usar = monto_inicial_enviado
+        
+        serializer.save(empleado=empleado, caja_monto_inicial=monto_final_a_usar)
+
+class CerrarCajaView(generics.UpdateAPIView):
+    queryset = Caja.objects.filter(caja_estado=True)
+    serializer_class = CajaCloseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_object(self):
+        try:
+            return self.get_queryset().get()
+        except Caja.DoesNotExist:
+            raise serializers.ValidationError("No hay ninguna caja abierta para cerrar.")
+        except Caja.MultipleObjectsReturned:
+            raise serializers.ValidationError("Error: Hay múltiples cajas abiertas. Cierrelas manualmente.")

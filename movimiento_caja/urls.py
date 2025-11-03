@@ -1,14 +1,10 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import EgresoViewSet, IngresoViewSet
-
-# Crea un router y registra nuestros ViewSets.
-# El DefaultRouter maneja automáticamente la generación de rutas CRUD.
-router = DefaultRouter()
-router.register(r'egresos', EgresoViewSet, basename='egreso')
-router.register(r'ingresos', IngresoViewSet, basename='ingreso')
+from django.urls import path
+from .views import IngresoCreateListView, EgresoCreateListView
 
 urlpatterns = [
-    # Incluye las URLs generadas por el router para egresos e ingresos
-    path('', include(router.urls)),
+    # GET, POST /api/movimiento_caja/ingresos/
+    path('ingresos/', IngresoCreateListView.as_view(), name='ingreso-list-create'),
+    
+    # GET, POST /api/movimiento_caja/egresos/
+    path('egresos/', EgresoCreateListView.as_view(), name='egreso-list-create'),
 ]

@@ -5,11 +5,12 @@ from empleado.models import Empleado
 from cliente.models import Cliente 
 from cliente.serializers import ClienteSerializer
 from venta.models import Venta, Detalle_Venta, Estado_Venta
+from caja.models import Caja # <--- 1. IMPORTAR CAJA
 
 # --- Serializers para LEER (mostrar datos) ---
 
 class DetallePedidoSerializer(serializers.ModelSerializer):
-    producto_nombre = serializers.CharField(source='producto.producto_nombre', read_only=True)
+    producto_nombre = serializers.CharField(source='producto.producto_nombre', read_only=True, allow_null=True)
     class Meta:
         model = Detalle_Pedido
         fields = ['producto_nombre', 'cantidad', 'precio_unitario', 'notas']
@@ -19,47 +20,34 @@ class PedidoListSerializer(serializers.ModelSerializer):
     estado_pedido = serializers.StringRelatedField()
     detalles = DetallePedidoSerializer(many=True, read_only=True)
     total_pedido = serializers.SerializerMethodField()
-    # --- CAMBIO: Usar ClienteSerializer anidado ---
-    # Esto incluirá todos los campos definidos en ClienteSerializer (nombre, direccion, etc.)
-    # allow_null=True asegura que funcione si no hay cliente asociado
     cliente = ClienteSerializer(read_only=True, allow_null=True)
 
     class Meta:
         model = Pedido
-        # 'cliente' ya estaba en fields, pero ahora devolverá el objeto completo
         fields = ['id', 'cliente', 'empleado', 'estado_pedido', 'pedido_fecha_hora', 'detalles', 'total_pedido']
 
     def get_total_pedido(self, obj):
         return sum(item.cantidad * (item.precio_unitario or 0) for item in obj.detalles.all())
+
 # --- Serializers para ESCRIBIR (crear un nuevo pedido) ---
 
 class DetallePedidoCreateSerializer(serializers.Serializer):
-    """
-    Valida los datos de CADA item que viene en un nuevo pedido.
-    """
     producto_id = serializers.PrimaryKeyRelatedField(queryset=Producto.objects.all(), source='producto', required=False, allow_null=True)
     cantidad = serializers.IntegerField(min_value=1)
-    notas = serializers.CharField(required=False, allow_blank=True) # Permitir explícitamente que esté en blanco
-    precio_unitario = serializers.DecimalField(max_digits=10, decimal_places=2) # Acepta el precio del frontend
+    notas = serializers.CharField(required=False, allow_blank=True, allow_null=True) # Permitir null
+    precio_unitario = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 class PedidoCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer principal para crear un Pedido con todos sus detalles.
-    """
     detalles = DetallePedidoCreateSerializer(many=True, write_only=True)
-    # --- CAMPO CLIENTE AÑADIDO (Escritura) ---
-    # Espera recibir el ID del cliente. Es opcional.
     cliente = serializers.PrimaryKeyRelatedField(
         queryset=Cliente.objects.all(), 
-        required=False, # No es obligatorio asociar un cliente
-        allow_null=True # Permite enviar null explícitamente
+        required=False,
+        allow_null=True
     )
 
     class Meta:
         model = Pedido
-        # Añadir 'cliente' a la lista de fields
         fields = ['cliente', 'detalles'] 
-        # Nota: 'empleado' y 'estado_pedido' se asignan automáticamente en el método create.
     
     def create(self, validated_data):
         # --- 1. OBTENER DATOS DEL PEDIDO ---
@@ -71,15 +59,16 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
         if not estado_inicial_pedido:
             raise serializers.ValidationError("No se encontró un estado inicial para el Pedido.")
 
+        # --- CORRECCIÓN: Usar .pop() para extraer cliente ---
         detalles_data = validated_data.pop('detalles')
-        cliente_obj = validated_data.pop('cliente', None) # Obtener el objeto Cliente (o None)
+        cliente_obj = validated_data.pop('cliente', None) # Extrae el cliente (o None)
 
         # --- 2. CREAR PEDIDO Y DETALLES DE PEDIDO ---
         pedido = Pedido.objects.create(
             empleado=empleado, 
             estado_pedido=estado_inicial_pedido, 
-            cliente=cliente_obj, # Asigna el cliente (o None)
-            **validated_data
+            cliente=cliente_obj, 
+            **validated_data # validated_data ya no tiene 'cliente'
         )
 
         total_calculado = 0
@@ -91,7 +80,6 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
             if notas_finales is None and producto_obj:
                  notas_finales = producto_obj.producto_nombre
             
-            # Calcular total
             total_calculado += (detalle_data['cantidad'] * detalle_data['precio_unitario'])
 
             detalles_pedido_para_crear.append(
@@ -104,35 +92,37 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
                 )
             )
         
-        # Crear detalles de pedido en lote
         Detalle_Pedido.objects.bulk_create(detalles_pedido_para_crear)
 
-        # --- 3. NUEVA LÓGICA: CREAR VENTA Y DETALLES DE VENTA ---
+        # --- 3. LÓGICA DE VENTA (ACTUALIZADA) ---
         try:
-            # Obtener el estado inicial para la Venta (ej: "Pendiente" o "Pagada")
-            # Asegúrate de tener al menos un Estado_Venta en tu BD
-            estado_inicial_venta = Estado_Venta.objects.order_by('id').first()
-            if not estado_inicial_venta:
-                 # Si no hay estado de venta, solo loggea la advertencia pero no falles el pedido
-                print("ADVERTENCIA: No se pudo crear la Venta. No se encontró un Estado_Venta inicial.")
-                return pedido # Devuelve el pedido que sí se creó
+            # --- CORRECCIÓN: Buscar la caja abierta ---
+            try:
+                caja_abierta = Caja.objects.get(caja_estado=True)
+            except Caja.DoesNotExist:
+                raise serializers.ValidationError("No se encontró una caja abierta. No se puede registrar la venta.")
+            except Caja.MultipleObjectsReturned:
+                raise serializers.ValidationError("Error: Hay múltiples cajas abiertas. Cierre la caja anterior.")
+            # --- FIN CORRECCIÓN ---
 
-            # Crear la Venta principal
+            estado_inicial_venta = Estado_Venta.objects.get(estado_venta_nombre="No Pagado") # Asumimos estado "No Pagado"
+            if not estado_inicial_venta:
+                print("ADVERTENCIA: No se pudo crear la Venta. No se encontró el Estado_Venta 'No Pagado'.")
+                return pedido 
+
             nueva_venta = Venta.objects.create(
-                cliente=cliente_obj,        # Asigna el mismo cliente (o None)
-                empleado=empleado,          # Asigna el mismo empleado
-                caja=None,                  # Asigna None (asumiendo que hiciste el cambio en models.py)
-                pedido=pedido,              # Vincula la venta al pedido
+                cliente=cliente_obj,
+                empleado=empleado,
+                caja=caja_abierta,              # <-- CORREGIDO (antes era None)
+                pedido=pedido,
                 estado_venta=estado_inicial_venta,
-                venta_total=total_calculado, # Asigna el total calculado
-                venta_medio_pago='efectivo',  # Asumimos 'efectivo' como default, ya que el pedido no incluye esta info
-                venta_descuento=0           # Asumimos 0 descuento por ahora
+                venta_total=total_calculado,
+                venta_medio_pago='efectivo', # Default (se cambia en VentasPage)
+                venta_descuento=0
             )
 
-            # Copiar los detalles del pedido a los detalles de la venta
             detalles_venta_para_crear = []
             for detalle_data in detalles_data:
-                # Solo añade detalles que sean productos reales (no el item de promo "padre")
                 if detalle_data.get('producto'):
                     detalles_venta_para_crear.append(
                         Detalle_Venta(
@@ -144,17 +134,12 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
                         )
                     )
             
-            # Crear detalles de venta en lote
             Detalle_Venta.objects.bulk_create(detalles_venta_para_crear)
 
         except Exception as e:
-            # Si la creación de la Venta falla (ej. por validación o error de BD),
-            # no revertimos el Pedido (ya se creó). Solo informamos en la consola.
             print(f"ADVERTENCIA: El Pedido N°{pedido.id} se creó, pero la Venta automática falló: {e}")
         
-        # --- FIN NUEVA LÓGICA ---
-
-        return pedido # Devuelve el pedido original
+        return pedido
 
 # --- Serializer para listar los estados de pedido ---
 class EstadoPedidoSerializer(serializers.ModelSerializer):
@@ -162,14 +147,10 @@ class EstadoPedidoSerializer(serializers.ModelSerializer):
         model = Estado_Pedido
         fields = ['id', 'estado_pedido_nombre']
 
+# --- Serializer para actualizar estado de pedido (CocinaPage) ---
 class PedidoUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializer específico para actualizar solo el estado de un pedido.
-    Espera recibir el ID del nuevo Estado_Pedido.
-    """
-    # Hacemos explícito que esperamos un ID para el ForeignKey
     estado_pedido = serializers.PrimaryKeyRelatedField(queryset=Estado_Pedido.objects.all())
 
     class Meta:
         model = Pedido
-        fields = ['estado_pedido'] # Solo permite actualizar este campo
+        fields = ['estado_pedido']

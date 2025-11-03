@@ -18,6 +18,7 @@ urlpatterns = [
     path('api/promocion/', include('promocion.urls')),
     path('api/pedido/', include('pedido.urls')),
     path('api/venta/', include('venta.urls')),
+    path('api/movimiento_caja/', include('movimiento_caja.urls')),
     path('api/compra/', include('compra.urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
