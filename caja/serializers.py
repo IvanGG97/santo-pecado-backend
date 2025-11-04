@@ -116,6 +116,7 @@ class CajaCloseSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         monto_inicial = instance.caja_monto_inicial
         
+        
         ventas_efectivo = Venta.objects.filter(
             caja=instance, 
             estado_venta__estado_venta_nombre='Pagado', # <-- CORREGIDO

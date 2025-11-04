@@ -14,9 +14,10 @@ class EstadoVentaSerializer(serializers.ModelSerializer):
 # --- Serializer para los Detalles del Pedido (con notas) ---
 class DetallePedidoParaVentaSerializer(serializers.ModelSerializer):
     producto_nombre = serializers.CharField(source='producto.producto_nombre', read_only=True, allow_null=True)
+    producto_tipo = serializers.CharField(source='producto.tipo_producto.tipo_producto_nombre', read_only=True, allow_null=True)
     class Meta:
         model = Detalle_Pedido
-        fields = ['id', 'producto_nombre', 'cantidad', 'precio_unitario', 'notas'] # <-- Incluimos 'notas'
+        fields = ['id', 'producto_nombre', 'cantidad', 'precio_unitario', 'notas','producto_tipo'] # <-- Incluimos 'notas'
 
 
 # --- Serializer para el Pedido (ACTUALIZADO) ---
