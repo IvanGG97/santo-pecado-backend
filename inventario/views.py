@@ -58,7 +58,17 @@ class ProductoDetailView(generics.RetrieveUpdateDestroyAPIView):
 class TipoProductoListCreateView(generics.ListCreateAPIView):
     queryset = Tipo_Producto.objects.all().order_by('tipo_producto_nombre')
     serializer_class = TipoProductoSerializer
-    permission_classes = [permissions.IsAdminUser]
+    # permission_classes = [permissions.IsAdminUser]
+    
+    def get_permissions(self):
+        """
+        Permisos dinámicos:
+        - GET: Todos los autenticados (para la Carta).
+        - POST: Solo Admins.
+        """
+        if self.request.method == 'POST':
+            return [permissions.IsAdminUser()]
+        return [permissions.IsAuthenticated()]
 
 class TipoProductoDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Tipo_Producto.objects.all()

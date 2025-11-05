@@ -17,14 +17,6 @@ from .serializers import (
 )
 from .serializers import RegisterSerializer, PasswordResetConfirmSerializer
 
-# --- VISTA DE REGISTRO ---
-# Permite que cualquiera cree un nuevo User. La señal se encarga de crear el Empleado.
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = RegisterSerializer
-    permission_classes = (permissions.AllowAny,)
-
-
 # --- VISTA PARA LISTAR EMPLEADOS ---
 # Devuelve la lista combinada de User y Empleado para la tabla del frontend.
 class EmpleadoListView(generics.ListAPIView):
