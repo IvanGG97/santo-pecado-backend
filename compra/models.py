@@ -4,11 +4,11 @@ from empleado.models import Empleado
 from inventario.models import Insumo
 # Create your models here.
 class Proveedor(models.Model):
-    proveedor_dni= models.CharField(max_length=100,unique=True)
+    proveedor_dni= models.CharField(max_length=100,unique=True,null=True, blank=True)
     proveedor_nombre = models.CharField(max_length=100)
-    proveedor_direccion = models.CharField(max_length=200)
+    proveedor_direccion = models.CharField(max_length=200,null=True, blank=True)
     proveedor_telefono = models.CharField(max_length=20,null=True, blank=True)
-    proveedor_email = models.EmailField(null=True, blank=True)
+    proveedor_email = models.EmailField(null=True, blank=True )
     
     class Meta:
         verbose_name_plural = "Proveedores"
