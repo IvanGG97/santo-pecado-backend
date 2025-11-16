@@ -28,7 +28,7 @@ class BaseMovimientoView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         caja_abierta = self.get_caja()
         if not caja_abierta.caja_estado:
-             raise serializers.ValidationError("No se pueden registrar movimientos en una caja cerrada.")
+            raise serializers.ValidationError("No se pueden registrar movimientos en una caja cerrada.")
         serializer.save(caja=caja_abierta)
 
     def list(self, request, *args, **kwargs):

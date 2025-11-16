@@ -122,7 +122,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-    )
+    ),
 }
 
 # --- BLOQUE SIMPLE_JWT CORREGIDO Y UNIFICADO ---

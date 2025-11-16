@@ -6,7 +6,7 @@ from .serializers import (
     ProductoSerializer, ProductoWriteSerializer, TipoProductoSerializer,
     InsumoReadSerializer, InsumoWriteSerializer, CategoriaInsumoSerializer
 )
-
+from pedido.models import Detalle_Pedido
 # --- VISTA PARA LISTAR Y CREAR PRODUCTOS ---
 class ProductoListCreateView(generics.ListCreateAPIView):
     queryset = Producto.objects.all().order_by('producto_nombre')
