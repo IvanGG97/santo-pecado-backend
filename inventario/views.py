@@ -129,7 +129,20 @@ class InsumoDetailView(generics.RetrieveUpdateDestroyAPIView):
 class CategoriaInsumoListCreateView(generics.ListCreateAPIView):
     queryset = Categoria_Insumo.objects.all().order_by('categoria_insumo_nombre')
     serializer_class = CategoriaInsumoSerializer
-    permission_classes = [permissions.IsAdminUser]
+
+    # 1. Cambiamos el permiso por defecto a IsAuthenticated
+    permission_classes = [permissions.IsAuthenticated]
+    # 2. Añadimos get_permissions para permisos dinámicos
+    def get_permissions(self):
+        """
+        Permisos dinámicos:
+        - GET: Todos los autenticados (incluido 'Encargado/Cajero').
+        - POST: Solo Admins.
+        """
+        if self.request.method == 'POST':
+            return [permissions.IsAdminUser()]
+        # Para GET (listar) usará el permiso de la clase: IsAuthenticated
+        return super().get_permissions()
 
 class CategoriaInsumoDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Categoria_Insumo.objects.all()
