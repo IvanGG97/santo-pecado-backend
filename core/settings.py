@@ -127,7 +127,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_RATES': {
+        'reporte_ia': '10/hour',
+    },
 }
+
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
 # --- BLOQUE SIMPLE_JWT CORREGIDO Y UNIFICADO ---
 SIMPLE_JWT = {

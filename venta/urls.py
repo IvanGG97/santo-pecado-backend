@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     VentaListCreateView,
     VentaDetailView,
-    EstadoVentaListView
+    EstadoVentaListView,
+    ReporteIAView
 )
 
 urlpatterns = [
@@ -14,4 +15,7 @@ urlpatterns = [
     
     # GET /api/venta/estados-venta/ (Para el dropdown del modal)
     path('estados-venta/', EstadoVentaListView.as_view(), name='estado-venta-list'),
+
+    # POST /api/venta/reporte-ia/ (Para el botón del dashboard)
+    path('reporte-ia/', ReporteIAView.as_view(), name='reporte-ia'),
 ]

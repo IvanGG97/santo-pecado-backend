@@ -5,6 +5,14 @@ from inventario.models import Producto
 from cliente.serializers import ClienteSerializer
 from empleado.serializers import EmpleadoSerializer # Importamos el EmpleadoSerializer existente
 
+# --- Serializer para el Reporte con IA: limita lo que se le manda a Gemini ---
+class ReporteIASerializer(serializers.Serializer):
+    ventasTotales = serializers.IntegerField(min_value=0)
+    topProductos = serializers.ListField(child=serializers.CharField(max_length=200), max_length=50)
+    topDias = serializers.ListField(child=serializers.CharField(max_length=200), max_length=50)
+    mediosPago = serializers.ListField(child=serializers.CharField(max_length=200), max_length=20)
+    stockBajo = serializers.ListField(child=serializers.CharField(max_length=200), max_length=200)
+
 # --- Serializer para Listar Estados de Venta (Lectura) ---
 class EstadoVentaSerializer(serializers.ModelSerializer):
     class Meta:
